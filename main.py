@@ -132,6 +132,7 @@ async def get_parcelle_at_point(lon: float, lat: float):
                 },
                 "geometry": parcelle["geometry"],
                 "bbox": parcelle.get("bbox"),
+                "geojson": data,
             }
     except httpx.HTTPError as e:
         raise HTTPException(status_code=502, detail=f"API Carto error: {str(e)}")
