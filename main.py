@@ -3,12 +3,15 @@ Cadastre Intelligent - Backend FastAPI
 Récupère les données cadastrales françaises via API Carto et Géoplateforme
 """
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import httpx
 import json
+import os
+import secrets
 from typing import Optional
 from urllib.parse import urlencode
 import asyncio
@@ -22,6 +25,34 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+security = HTTPBasic(auto_error=False)
+BASIC_USER = os.getenv("BASIC_USER")
+BASIC_PASS = os.getenv("BASIC_PASS")
+
+
+@app.middleware("http")
+async def enforce_basic_auth(request: Request, call_next):
+    """Protection HTTP Basic globale (user/pass via env BASIC_USER/BASIC_PASS)."""
+    if not BASIC_USER or not BASIC_PASS:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": "BASIC_USER/BASIC_PASS non configurés côté serveur."},
+        )
+
+    credentials: Optional[HTTPBasicCredentials] = await security(request)
+    if (
+        not credentials
+        or not secrets.compare_digest(credentials.username, BASIC_USER)
+        or not secrets.compare_digest(credentials.password, BASIC_PASS)
+    ):
+        return Response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            headers={"WWW-Authenticate": 'Basic realm="HTML-CARTO"'},
+        )
+
+    return await call_next(request)
+
 
 # ============================================================
 # API ADRESSE - Géocodage et Autocomplete
