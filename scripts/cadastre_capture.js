@@ -1,65 +1,30 @@
 /**
- * Capture d'un plan cadastral via cadastre.gouv.fr avec Playwright (CommonJS).
- * Usage (en local) :
+ * Wrapper pour appeler l'API locale /api/capture et enregistrer le PNG.
+ * Laisse le serveur Express tourner (npm run dev), puis lance :
  *   ADDRESS="14 rue Emile Nicol, Dozulé" OUTPUT="cadastre.png" node scripts/cadastre_capture.js
- *
- * Si le site change de structure, ajustez les sélecteurs ou régénérez avec :
- *   npx playwright codegen https://www.cadastre.gouv.fr/scpc/rechercherPlan.do
+ * Option : API_URL pour cibler un autre hôte (ex: déploiement).
  */
 
-const { chromium } = require("playwright");
+const fs = require("fs");
+const path = require("path");
 
 const ADDRESS = process.env.ADDRESS || "14 rue Emile Nicol, Dozulé";
-const OUTPUT = process.env.OUTPUT || "cadastre.png";
-const WAIT_MS = Number(process.env.WAIT_MS || 9000);
-const HEADLESS = !process.env.SHOW; // mettre SHOW=1 pour ouvrir le navigateur (headful)
-
-async function clickIfVisible(page, selector) {
-  const el = await page.$(selector);
-  if (el) {
-    await el.click({ timeout: 1000 });
-    return true;
-  }
-  return false;
-}
+const OUTPUT = path.resolve(process.env.OUTPUT || "cadastre.png");
+const API_URL = process.env.API_URL || "http://localhost:3000/api/capture";
 
 async function main() {
-  const browser = await chromium.launch({
-    headless: HEADLESS,
+  const resp = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ address: ADDRESS }),
   });
-  const page = await browser.newPage({ viewport: { width: 1700, height: 1200 } });
-
-  await page.goto("https://www.cadastre.gouv.fr/scpc/rechercherPlan.do", {
-    waitUntil: "domcontentloaded",
-  });
-
-  // Consentement/cookies selon le bandeau affiché
-  await clickIfVisible(page, 'button:has-text("Accepter")');
-  await clickIfVisible(page, 'button:has-text("Tout accepter")');
-  await clickIfVisible(page, "text=Accepter");
-
-  // Champ de recherche principal (premier input texte)
-  const searchBox = await page.$('input[type="text"]');
-  if (!searchBox) {
-    console.error("Champ de recherche introuvable, ajustez le sélecteur dans scripts/cadastre_capture.js");
-    await browser.close();
-    process.exit(1);
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error(`Capture API error (${resp.status}): ${txt}`);
   }
-  await searchBox.fill(ADDRESS);
-  await searchBox.press("Enter");
-
-  // Laisser le temps au site de charger la feuille/zoom
-  await page.waitForTimeout(WAIT_MS);
-
-  await page.screenshot({ path: OUTPUT, fullPage: true });
-  console.log(`Capture enregistrée dans ${OUTPUT}`);
-
-  if (!HEADLESS) {
-    console.log("Navigateur ouvert (SHOW=1). Appuie sur Ctrl+C pour fermer après vérification.");
-    await page.waitForTimeout(600000); // 10 minutes pour inspection manuelle
-  }
-
-  await browser.close();
+  const arrayBuffer = await resp.arrayBuffer();
+  fs.writeFileSync(OUTPUT, Buffer.from(arrayBuffer));
+  console.log(`Capture sauvegardée -> ${OUTPUT}`);
 }
 
 main().catch((err) => {

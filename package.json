@@ -1,0 +1,27 @@
+{
+  "name": "html-carto",
+  "version": "1.0.0",
+  "description": "Application web pour afficher les données cadastrales françaises complètes.",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yohand-byte/HTML-CARTO.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/yohand-byte/HTML-CARTO/issues"
+  },
+  "homepage": "https://github.com/yohand-byte/HTML-CARTO#readme",
+  "dependencies": {
+    "express": "^4.19.2",
+    "playwright": "^1.57.0"
+  }
+}
