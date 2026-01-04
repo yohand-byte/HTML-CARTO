@@ -53,6 +53,7 @@
         .map-scale-bar .bar { height: 4px; background: #333; }
         .map-minimap { position: absolute; top: 10px; left: 10px; width: 100px; height: 80px; background: #e8f4fc; border: 1px solid #999; border-radius: 4px; z-index: 1000; overflow: hidden; }
         .map-minimap-marker { position: absolute; width: 10px; height: 10px; background: #1e3a5f; border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%); }
+        .map-note { margin-top: 10px; color: #475569; font-size: 0.9rem; }
         .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
         .status-item { background: #f8fafc; padding: 20px; border-radius: 10px; display: flex; align-items: center; gap: 12px; }
         .status-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
@@ -319,10 +320,11 @@
                         </div>
                     </div>
                     <div class="map-controls">
-                        <button class="scale-btn ${state.cadastreScale === 2000 ? 'active' : ''}" onclick="setScale(2000)">Échelle 1 : 2 000</button>
-                        <button class="scale-btn ${state.cadastreScale === 5000 ? 'active' : ''}" onclick="setScale(5000)">Échelle 1 : 5 000</button>
-                    </div>
-                `;
+                            <button class="scale-btn ${state.cadastreScale === 2000 ? 'active' : ''}" onclick="setScale(2000)">Échelle 1 : 2 000</button>
+                            <button class="scale-btn ${state.cadastreScale === 5000 ? 'active' : ''}" onclick="setScale(5000)">Échelle 1 : 5 000</button>
+                        </div>
+                        <p class="map-note">Fond « Plan Cadastral » officiel (IGN - Parcellaire Express) avec mise en évidence de la parcelle sélectionnée.</p>
+                    `;
                 
                 initCadastreMap();
                 
@@ -345,11 +347,28 @@
                 attributionControl: false
             }).setView([lat, lon], zoom);
             
-            // Couche cadastre IGN
+            // Couche cadastre IGN (plan officiel)
             L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
                 maxZoom: 20,
                 opacity: 1
             }).addTo(state.cadastreMap);
+
+            // Échelle métrique Leaflet pour coller au rendu officiel
+            L.control.scale({ imperial: false, maxWidth: 150, position: 'bottomleft' }).addTo(state.cadastreMap);
+
+            // Légende dédiée au plan cadastral
+            const legend = L.control({ position: 'topright' });
+            legend.onAdd = function () {
+                const div = L.DomUtil.create('div', 'map-legend');
+                div.innerHTML = `
+                    <h4>Légende</h4>
+                    <div class="map-legend-item"><span class="map-legend-color" style="background:#dc2626;"></span> Parcelle ciblée</div>
+                    <div class="map-legend-item"><span class="map-legend-color" style="background:#e0f2fe;"></span> Parcelles voisines</div>
+                    <div class="map-legend-item"><span class="map-legend-color" style="background:#000;"></span> Fond cadastral IGN</div>
+                `;
+                return div;
+            };
+            legend.addTo(state.cadastreMap);
             
             // Parcelle sélectionnée en surbrillance
             if (state.parcelleGeoJSON) {
