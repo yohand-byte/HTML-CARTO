@@ -12,6 +12,7 @@ const { chromium } = require("playwright");
 const ADDRESS = process.env.ADDRESS || "14 rue Emile Nicol, Dozulé";
 const OUTPUT = process.env.OUTPUT || "cadastre.png";
 const WAIT_MS = Number(process.env.WAIT_MS || 9000);
+const HEADLESS = !process.env.SHOW; // mettre SHOW=1 pour ouvrir le navigateur (headful)
 
 async function clickIfVisible(page, selector) {
   const el = await page.$(selector);
@@ -23,7 +24,9 @@ async function clickIfVisible(page, selector) {
 }
 
 async function main() {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({
+    headless: HEADLESS,
+  });
   const page = await browser.newPage({ viewport: { width: 1700, height: 1200 } });
 
   await page.goto("https://www.cadastre.gouv.fr/scpc/rechercherPlan.do", {
@@ -50,6 +53,11 @@ async function main() {
 
   await page.screenshot({ path: OUTPUT, fullPage: true });
   console.log(`Capture enregistrée dans ${OUTPUT}`);
+
+  if (!HEADLESS) {
+    console.log("Navigateur ouvert (SHOW=1). Appuie sur Ctrl+C pour fermer après vérification.");
+    await page.waitForTimeout(600000); // 10 minutes pour inspection manuelle
+  }
 
   await browser.close();
 }
