@@ -44,6 +44,9 @@
         .scale-btn { padding: 10px 20px; background: #fff; border: 2px solid #333; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; }
         .scale-btn:hover { background: #f0f0f0; }
         .scale-btn.active { background: #1e3a5f; color: white; border-color: #1e3a5f; }
+        .cadastre-filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+        .filter-pill { padding: 10px 16px; border: 1px solid #cbd5e1; border-radius: 20px; background: white; cursor: pointer; font-weight: 600; color: #1e293b; }
+        .filter-pill.active { background: #1e3a5f; color: white; border-color: #1e3a5f; }
         .map-legend { position: absolute; top: 10px; left: 10px; background: white; border: 1px solid #ccc; border-radius: 6px; padding: 10px; font-size: 0.75rem; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
         .map-legend h4 { font-size: 0.7rem; margin-bottom: 6px; color: #333; }
         .map-legend-item { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
@@ -107,6 +110,11 @@
         
         <div class="panel" id="panel-cadastre">
             <h2>Plan Cadastral</h2>
+            <div class="cadastre-filters">
+                <button class="filter-pill active" data-base="cadastre">Plan cadastral</button>
+                <button class="filter-pill" data-base="planign">Plan IGN</button>
+                <button class="filter-pill" data-base="ortho">Orthophoto</button>
+            </div>
             <div id="cadastre-content">
                 <div class="empty-state">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -121,6 +129,11 @@
             <h2>Carte Interactive</h2>
             <div class="map-container">
                 <div id="map"></div>
+            </div>
+            <div class="map-controls">
+                <button class="scale-btn active" data-scale="2000">Échelle 1 : 2 000</button>
+                <button class="scale-btn" data-scale="5000">Échelle 1 : 5 000</button>
+                <span style="color:#475569;font-weight:600;">(appliqué au mode cadastre)</span>
             </div>
         </div>
         
@@ -150,6 +163,7 @@
             parcelleLayer: null,
             cadastreScale: 2000,
             parcelle: null,
+            cadastreBase: 'cadastre',
         };
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -158,6 +172,8 @@
             initMap();
             initOrthoMap();
             checkStatus();
+            initMapScaleControls();
+            initCadastreFilters();
         });
 
         function initTabs() {
@@ -219,6 +235,28 @@
 
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('.search-container')) list.style.display = 'none';
+            });
+        }
+
+        function initMapScaleControls() {
+            document.querySelectorAll('.map-controls .scale-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.map-controls .scale-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    const scale = parseInt(btn.dataset.scale, 10);
+                    setScale(scale);
+                });
+            });
+        }
+
+        function initCadastreFilters() {
+            document.querySelectorAll('.cadastre-filters .filter-pill').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.cadastre-filters .filter-pill').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    state.cadastreBase = btn.dataset.base;
+                    initCadastreMap();
+                });
             });
         }
 
@@ -306,8 +344,8 @@
                             <span class="cadastre-info-value">${p.nom_commune} (${p.code_insee})</span>
                         </div>
                     </div>
-                    <div class="map-container" style="position: relative;">
-                        <div id="cadastre-map"></div>
+                        <div class="map-container" style="position: relative;">
+                            <div id="cadastre-map"></div>
                         <div class="map-minimap" id="minimap">
                             <div class="map-minimap-marker" style="left: 50%; top: 50%;"></div>
                         </div>
@@ -347,11 +385,26 @@
                 attributionControl: false
             }).setView([lat, lon], zoom);
             
-            // Couche cadastre IGN (plan officiel)
-            L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
+            const cadastreLayer = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
                 maxZoom: 20,
                 opacity: 1
-            }).addTo(state.cadastreMap);
+            });
+            const planLayer = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
+                maxZoom: 19,
+            });
+            const orthoLayer = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
+                maxZoom: 20,
+            });
+
+            if (state.cadastreBase === 'ortho') {
+                orthoLayer.addTo(state.cadastreMap);
+                cadastreLayer.addTo(state.cadastreMap);
+            } else if (state.cadastreBase === 'planign') {
+                planLayer.addTo(state.cadastreMap);
+                cadastreLayer.addTo(state.cadastreMap);
+            } else {
+                cadastreLayer.addTo(state.cadastreMap);
+            }
 
             // Échelle métrique Leaflet pour coller au rendu officiel
             L.control.scale({ imperial: false, maxWidth: 150, position: 'bottomleft' }).addTo(state.cadastreMap);
@@ -408,9 +461,6 @@
 
         function setScale(scale) {
             state.cadastreScale = scale;
-            document.querySelectorAll('.scale-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelector(`.scale-btn[onclick="setScale(${scale})"]`).classList.add('active');
-            
             const scaleDisplay = document.getElementById('scale-display');
             if (scaleDisplay) {
                 scaleDisplay.innerHTML = `
