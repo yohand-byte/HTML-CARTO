@@ -97,4 +97,14 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 3. Build command: `pip install -r requirements.txt`
 4. Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
 5. Choisir le plan **Free**. Le `render.yaml` est fourni pour l’auto-détection.
+
+## 🖼️ Capture du plan cadastral officiel (script Playwright, option manuelle)
+
+Un script d’automatisation est fourni pour capturer un plan directement depuis cadastre.gouv.fr (rend à lancer en local, sans l’exposer en prod) :
+```
+cd HTML-CARTO
+npm install playwright
+ADDRESS="14 rue Emile Nicol, Dozulé" OUTPUT="cadastre.png" node scripts/cadastre_capture.js
+```
+Si le site change de structure, ajustez les sélecteurs dans `scripts/cadastre_capture.js` ou utilisez `npx playwright codegen https://www.cadastre.gouv.fr/scpc/rechercherPlan.do` pour régénérer les clics.
 ```
