@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastre Intelligent</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        
+        header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        header p {
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+        
+        .search-section {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        
+        .search-container {
+            position: relative;
+            max-width: 600px;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 16px 20px;
+            font-size: 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            outline: none;
+            transition: all 0.2s;
+        }
+        
+        .search-input:focus {
+            border-color: #2d5a87;
+            box-shadow: 0 0 0 3px rgba(45, 90, 135, 0.1);
+        }
+        
+        .autocomplete-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            margin-top: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            display: none;
+        }
+        
+        .autocomplete-item {
+            padding: 14px 20px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+            transition: background 0.15s;
+        }
+        
+        .autocomplete-item:hover {
+            background: #f8fafc;
+        }
+        
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        
+        .autocomplete-item .label {
+            font-weight: 500;
+            color: #1e3a5f;
+        }
+        
+        .autocomplete-item .context {
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            background: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .tab:hover {
+            background: #f8fafc;
+            color: #1e3a5f;
+        }
+        
+        .tab.active {
+            background: #1e3a5f;
+            color: white;
+        }
+        
+        .panel {
+            display: none;
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        
+        .panel.active {
+            display: block;
+        }
+        
+        .panel h2 {
+            font-size: 1.3rem;
+            color: #1e3a5f;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #f1f5f9;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+        
+        .info-card {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #2d5a87;
+        }
+        
+        .info-card h3 {
+            font-size: 0.85rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .info-card .value {
+            font-size: 1.1rem;
+            color: #1e3a5f;
+            font-weight: 600;
+        }
+        
+        .info-card .subvalue {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-top: 4px;
+        }
+        
+        #map {
+            height: 500px;
+            border-radius: 10px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .orthophoto-container {
+            text-align: center;
+        }
+        
+        .orthophoto-container img {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        .status-item {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .status-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        
+        .status-icon.ok {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        
+        .status-icon.error {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .status-icon.loading {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .parcelle-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+        
+        .parcelle-table th,
+        .parcelle-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .parcelle-table th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #1e3a5f;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+        
+        .parcelle-table tr:hover {
+            background: #f8fafc;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+        
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e2e8f0;
+            border-top-color: #2d5a87;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #94a3b8;
+        }
+        
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .radius-control {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .radius-control label {
+            font-weight: 500;
+            color: #1e3a5f;
+        }
+        
+        .radius-control input[type="range"] {
+            width: 200px;
+        }
+        
+        .radius-control .radius-value {
+            background: #f1f5f9;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            color: #2d5a87;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            background: #2d5a87;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        
+        .btn:hover {
+            background: #1e3a5f;
+        }
+        
+        .highlight-parcelle {
+            background: #fef3c7 !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏠 Cadastre Intelligent</h1>
+            <p>Recherchez une adresse pour afficher les données cadastrales complètes</p>
+        </header>
+        
+        <section class="search-section">
+            <div class="search-container">
+                <input type="text" 
+                       class="search-input" 
+                       id="searchInput" 
+                       placeholder="Entrez une adresse (ex: 14 rue Émile Nicol, Dozulé)"
+                       autocomplete="off">
+                <div class="autocomplete-list" id="autocompleteList"></div>
+            </div>
+        </section>
+        
+        <div class="tabs">
+            <button class="tab active" data-tab="geocode">📍 Géocodage</button>
+            <button class="tab" data-tab="cadastre">📋 Cadastre</button>
+            <button class="tab" data-tab="map">🗺️ Carte</button>
+            <button class="tab" data-tab="orthophoto">🛰️ Orthophoto</button>
+            <button class="tab" data-tab="status">⚙️ Status APIs</button>
+        </div>
+        
+        <!-- Panel Géocodage -->
+        <div class="panel active" id="panel-geocode">
+            <h2>Résultats du Géocodage</h2>
+            <div id="geocode-content">
+                <div class="empty-state">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <p>Recherchez une adresse pour voir les résultats</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Panel Cadastre -->
+        <div class="panel" id="panel-cadastre">
+            <h2>Données Cadastrales</h2>
+            <div class="radius-control">
+                <label for="radiusSlider">Rayon de recherche:</label>
+                <input type="range" id="radiusSlider" min="50" max="500" value="100" step="50">
+                <span class="radius-value" id="radiusValue">100m</span>
+                <button class="btn" id="refreshParcelles">Actualiser</button>
+            </div>
+            <div id="cadastre-content">
+                <div class="empty-state">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                    </svg>
+                    <p>Sélectionnez une adresse pour voir les parcelles</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Panel Carte -->
+        <div class="panel" id="panel-map">
+            <h2>Carte Interactive</h2>
+            <div id="map"></div>
+        </div>
+        
+        <!-- Panel Orthophoto -->
+        <div class="panel" id="panel-orthophoto">
+            <h2>Vue Aérienne (Orthophoto)</h2>
+            <div id="orthophoto-content" class="orthophoto-container">
+                <div class="empty-state">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p>Sélectionnez une adresse pour voir l'orthophoto</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Panel Status -->
+        <div class="panel" id="panel-status">
+            <h2>Status des APIs</h2>
+            <div id="status-content">
+                <div class="loading">Vérification des APIs en cours</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // État global
+        let state = {
+            currentLocation: null,
+            currentInsee: null,
+            parcelles: [],
+            map: null,
+            marker: null,
+            parcellesLayer: null,
+            mainParcelleLayer: null,
+        };
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', () => {
+            initTabs();
+            initSearch();
+            initMap();
+            initRadiusControl();
+            checkStatus();
+        });
+
+        // Gestion des onglets
+        function initTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                    
+                    tab.classList.add('active');
+                    document.getElementById(`panel-${tab.dataset.tab}`).classList.add('active');
+                    
+                    // Recalculer la taille de la carte si on affiche l'onglet carte
+                    if (tab.dataset.tab === 'map' && state.map) {
+                        setTimeout(() => state.map.invalidateSize(), 100);
+                    }
+                });
+            });
+        }
+
+        // Recherche et autocomplete
+        function initSearch() {
+            const input = document.getElementById('searchInput');
+            const list = document.getElementById('autocompleteList');
+            let debounceTimer;
+
+            input.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                const query = input.value.trim();
+                
+                if (query.length < 3) {
+                    list.style.display = 'none';
+                    return;
+                }
+
+                debounceTimer = setTimeout(async () => {
+                    try {
+                        const resp = await fetch(`/api/autocomplete?q=${encodeURIComponent(query)}`);
+                        const data = await resp.json();
+                        
+                        if (data.features && data.features.length > 0) {
+                            list.innerHTML = data.features.map(f => `
+                                <div class="autocomplete-item" data-feature='${JSON.stringify(f)}'>
+                                    <div class="label">${f.properties.label}</div>
+                                    <div class="context">${f.properties.context || ''}</div>
+                                </div>
+                            `).join('');
+                            list.style.display = 'block';
+                            
+                            list.querySelectorAll('.autocomplete-item').forEach(item => {
+                                item.addEventListener('click', () => {
+                                    const feature = JSON.parse(item.dataset.feature);
+                                    selectAddress(feature);
+                                    list.style.display = 'none';
+                                    input.value = feature.properties.label;
+                                });
+                            });
+                        } else {
+                            list.style.display = 'none';
+                        }
+                    } catch (err) {
+                        console.error('Autocomplete error:', err);
+                    }
+                }, 300);
+            });
+
+            // Fermer la liste si on clique ailleurs
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.search-container')) {
+                    list.style.display = 'none';
+                }
+            });
+        }
+
+        // Sélection d'une adresse
+        async function selectAddress(feature) {
+            const coords = feature.geometry.coordinates;
+            const props = feature.properties;
+            
+            state.currentLocation = { lon: coords[0], lat: coords[1] };
+            state.currentInsee = props.citycode;
+
+            // Mettre à jour tous les panneaux
+            updateGeocodePanel(props, coords);
+            await loadParcelles();
+            updateMap();
+            loadOrthophoto();
+        }
+
+        // Mise à jour du panneau géocodage
+        function updateGeocodePanel(props, coords) {
+            const html = `
+                <div class="info-grid">
+                    <div class="info-card">
+                        <h3>Adresse complète</h3>
+                        <div class="value">${props.label}</div>
+                    </div>
+                    <div class="info-card">
+                        <h3>Coordonnées GPS</h3>
+                        <div class="value">${coords[1].toFixed(6)}, ${coords[0].toFixed(6)}</div>
+                        <div class="subvalue">Latitude, Longitude (WGS84)</div>
+                    </div>
+                    <div class="info-card">
+                        <h3>Code INSEE</h3>
+                        <div class="value">${props.citycode}</div>
+                        <div class="subvalue">${props.city}</div>
+                    </div>
+                    <div class="info-card">
+                        <h3>Code Postal</h3>
+                        <div class="value">${props.postcode}</div>
+                    </div>
+                    <div class="info-card">
+                        <h3>Contexte</h3>
+                        <div class="value">${props.context}</div>
+                    </div>
+                    <div class="info-card">
+                        <h3>Score de confiance</h3>
+                        <div class="value">${(props.score * 100).toFixed(1)}%</div>
+                        <div class="subvalue">Précision du géocodage</div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('geocode-content').innerHTML = html;
+        }
+
+        // Chargement des parcelles cadastrales
+        async function loadParcelles() {
+            if (!state.currentLocation) return;
+            
+            const content = document.getElementById('cadastre-content');
+            content.innerHTML = '<div class="loading">Chargement des parcelles cadastrales</div>';
+            
+            const radius = parseInt(document.getElementById('radiusSlider').value);
+            
+            try {
+                // D'abord récupérer la parcelle principale (sous le point)
+                const mainResp = await fetch(`/api/cadastre/parcelle?lon=${state.currentLocation.lon}&lat=${state.currentLocation.lat}`);
+                const mainData = await mainResp.json();
+                
+                // Puis les parcelles autour
+                const zoneResp = await fetch(`/api/cadastre/parcelles-zone?lon=${state.currentLocation.lon}&lat=${state.currentLocation.lat}&radius=${radius}`);
+                const zoneData = await zoneResp.json();
+                
+                if (!zoneData.success || zoneData.count === 0) {
+                    content.innerHTML = '<div class="empty-state"><p>Aucune parcelle trouvée dans cette zone</p></div>';
+                    return;
+                }
+                
+                state.parcelles = zoneData.parcelles;
+                state.mainParcelle = mainData.success ? mainData.parcelle : null;
+                state.parcellesGeoJSON = zoneData.geojson;
+                
+                // Afficher le tableau
+                let html = '';
+                
+                if (mainData.success) {
+                    html += `
+                        <div class="info-grid" style="margin-bottom: 24px;">
+                            <div class="info-card" style="border-left-color: #16a34a;">
+                                <h3>Parcelle à l'adresse</h3>
+                                <div class="value">${mainData.parcelle.idu}</div>
+                                <div class="subvalue">Section ${mainData.parcelle.section} - N° ${mainData.parcelle.numero}</div>
+                            </div>
+                            <div class="info-card" style="border-left-color: #16a34a;">
+                                <h3>Superficie</h3>
+                                <div class="value">${mainData.parcelle.contenance} m²</div>
+                                <div class="subvalue">${(mainData.parcelle.contenance / 10000).toFixed(3)} ha</div>
+                            </div>
+                            <div class="info-card" style="border-left-color: #16a34a;">
+                                <h3>Commune</h3>
+                                <div class="value">${mainData.parcelle.nom_commune}</div>
+                                <div class="subvalue">Dept. ${mainData.parcelle.code_departement}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                html += `
+                    <h3 style="margin-bottom: 12px; color: #64748b;">${zoneData.count} parcelles dans un rayon de ${radius}m</h3>
+                    <table class="parcelle-table">
+                        <thead>
+                            <tr>
+                                <th>IDU</th>
+                                <th>Section</th>
+                                <th>Numéro</th>
+                                <th>Contenance (m²)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                for (const p of zoneData.parcelles) {
+                    const isMain = mainData.success && p.idu === mainData.parcelle.idu;
+                    html += `
+                        <tr class="${isMain ? 'highlight-parcelle' : ''}">
+                            <td><strong>${p.idu}</strong></td>
+                            <td>${p.section}</td>
+                            <td>${p.numero}</td>
+                            <td>${p.contenance || '-'}</td>
+                        </tr>
+                    `;
+                }
+                
+                html += '</tbody></table>';
+                content.innerHTML = html;
+                
+                // Mettre à jour la carte avec les parcelles
+                updateMapParcelles();
+                
+            } catch (err) {
+                console.error('Cadastre error:', err);
+                content.innerHTML = `<div class="empty-state"><p>Erreur lors du chargement: ${err.message}</p></div>`;
+            }
+        }
+
+        // Initialisation de la carte
+        function initMap() {
+            state.map = L.map('map').setView([46.603354, 1.888334], 6);
+            
+            // Couche OSM
+            const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            });
+            
+            // Couche Orthophoto IGN
+            const orthoLayer = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
+                attribution: '© IGN - Géoplateforme',
+                maxZoom: 19
+            });
+            
+            // Couche Plan IGN
+            const planLayer = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
+                attribution: '© IGN - Géoplateforme',
+                maxZoom: 19
+            });
+            
+            // Ajouter OSM par défaut
+            osmLayer.addTo(state.map);
+            
+            // Contrôle de couches
+            const baseMaps = {
+                "OpenStreetMap": osmLayer,
+                "Orthophoto IGN": orthoLayer,
+                "Plan IGN": planLayer
+            };
+            
+            L.control.layers(baseMaps).addTo(state.map);
+            
+            // Couche pour les parcelles
+            state.parcellesLayer = L.featureGroup().addTo(state.map);
+            state.mainParcelleLayer = L.featureGroup().addTo(state.map);
+        }
+
+        // Mise à jour de la carte
+        function updateMap() {
+            if (!state.currentLocation || !state.map) return;
+            
+            const { lat, lon } = state.currentLocation;
+            
+            // Supprimer l'ancien marqueur
+            if (state.marker) {
+                state.map.removeLayer(state.marker);
+            }
+            
+            // Ajouter le nouveau marqueur
+            state.marker = L.marker([lat, lon])
+                .addTo(state.map)
+                .bindPopup('📍 Adresse recherchée')
+                .openPopup();
+            
+            state.map.setView([lat, lon], 17);
+        }
+
+        // Mise à jour des parcelles sur la carte
+        function updateMapParcelles() {
+            if (!state.parcellesGeoJSON) return;
+            
+            // Nettoyer les anciennes couches
+            state.parcellesLayer.clearLayers();
+            state.mainParcelleLayer.clearLayers();
+            
+            // Ajouter toutes les parcelles
+            L.geoJSON(state.parcellesGeoJSON, {
+                style: (feature) => {
+                    const isMain = state.mainParcelle && feature.properties.idu === state.mainParcelle.idu;
+                    return {
+                        color: isMain ? '#16a34a' : '#2d5a87',
+                        weight: isMain ? 3 : 2,
+                        fillColor: isMain ? '#dcfce7' : '#e0f2fe',
+                        fillOpacity: isMain ? 0.5 : 0.3,
+                    };
+                },
+                onEachFeature: (feature, layer) => {
+                    const p = feature.properties;
+                    layer.bindPopup(`
+                        <strong>${p.idu}</strong><br>
+                        Section: ${p.section} - N° ${p.numero}<br>
+                        Contenance: ${p.contenance || '-'} m²
+                    `);
+                }
+            }).addTo(state.parcellesLayer);
+        }
+
+        // Chargement de l'orthophoto
+        async function loadOrthophoto() {
+            if (!state.currentLocation) return;
+            
+            const content = document.getElementById('orthophoto-content');
+            content.innerHTML = '<div class="loading">Chargement de l\'orthophoto</div>';
+            
+            try {
+                const { lon, lat } = state.currentLocation;
+                
+                // Créer une grille de tuiles (3x3) autour du point central
+                const zoom = 17;
+                const n = Math.pow(2, zoom);
+                const centerX = Math.floor((lon + 180) / 360 * n);
+                const centerY = Math.floor((1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * n);
+                
+                let tilesHtml = '<div style="display: grid; grid-template-columns: repeat(3, 256px); gap: 0; justify-content: center;">';
+                
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        const tx = centerX + dx;
+                        const ty = centerY + dy;
+                        const url = `https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX=${zoom}&TILEROW=${ty}&TILECOL=${tx}`;
+                        tilesHtml += `<img src="${url}" style="width: 256px; height: 256px; display: block;">`;
+                    }
+                }
+                tilesHtml += '</div>';
+                
+                content.innerHTML = `
+                    ${tilesHtml}
+                    <p style="margin-top: 16px; color: #64748b; font-size: 0.9rem; text-align: center;">
+                        Vue aérienne centrée sur ${lat.toFixed(6)}, ${lon.toFixed(6)}<br>
+                        Source: IGN - Géoplateforme (WMTS)
+                    </p>
+                `;
+            } catch (err) {
+                content.innerHTML = `<div class="empty-state"><p>Erreur: ${err.message}</p></div>`;
+            }
+        }
+
+        // Contrôle du rayon
+        function initRadiusControl() {
+            const slider = document.getElementById('radiusSlider');
+            const value = document.getElementById('radiusValue');
+            const btn = document.getElementById('refreshParcelles');
+            
+            slider.addEventListener('input', () => {
+                value.textContent = `${slider.value}m`;
+            });
+            
+            btn.addEventListener('click', () => {
+                loadParcelles();
+            });
+        }
+
+        // Vérification du status des APIs
+        async function checkStatus() {
+            const content = document.getElementById('status-content');
+            
+            try {
+                const resp = await fetch('/api/status');
+                const data = await resp.json();
+                
+                const apis = [
+                    { key: 'api_adresse', name: 'API Adresse', desc: 'Géocodage data.gouv.fr' },
+                    { key: 'api_carto', name: 'API Carto', desc: 'Cadastre IGN' },
+                    { key: 'wms_orthophoto', name: 'WMS Orthophoto', desc: 'Géoplateforme IGN' },
+                ];
+                
+                const html = `
+                    <div class="status-grid">
+                        ${apis.map(api => {
+                            const status = data.apis[api.key];
+                            const isOk = status && status.status === 'ok';
+                            return `
+                                <div class="status-item">
+                                    <div class="status-icon ${isOk ? 'ok' : 'error'}">
+                                        ${isOk ? '✓' : '✗'}
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: 600;">${api.name}</div>
+                                        <div style="font-size: 0.85rem; color: #64748b;">${api.desc}</div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    <p style="margin-top: 20px; padding: 16px; background: ${data.success ? '#dcfce7' : '#fee2e2'}; border-radius: 8px; color: ${data.success ? '#166534' : '#991b1b'};">
+                        ${data.message}
+                    </p>
+                `;
+                content.innerHTML = html;
+            } catch (err) {
+                content.innerHTML = `<div class="empty-state"><p>Erreur de connexion au serveur</p></div>`;
+            }
+        }
+    </script>
+</body>
+</html>
