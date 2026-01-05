@@ -200,19 +200,25 @@
             const input = document.getElementById('searchInput');
             const list = document.getElementById('autocompleteList');
             let debounceTimer;
+            let currentFeatures = [];
 
             input.addEventListener('input', () => {
                 clearTimeout(debounceTimer);
                 const query = input.value.trim();
-                if (query.length < 3) { list.style.display = 'none'; return; }
+                if (query.length < 3) { 
+                    list.style.display = 'none'; 
+                    currentFeatures = [];
+                    return; 
+                }
 
                 debounceTimer = setTimeout(async () => {
                     try {
                         const resp = await fetch(`/api/autocomplete?q=${encodeURIComponent(query)}`);
                         const data = await resp.json();
                         if (data.features && data.features.length > 0) {
-                            list.innerHTML = data.features.map(f => `
-                                <div class="autocomplete-item" data-feature='${JSON.stringify(f)}'>
+                            currentFeatures = data.features;
+                            list.innerHTML = currentFeatures.map((f, idx) => `
+                                <div class="autocomplete-item" data-idx="${idx}">
                                     <div class="label">${f.properties.label}</div>
                                     <div class="context">${f.properties.context || ''}</div>
                                 </div>
@@ -220,16 +226,23 @@
                             list.style.display = 'block';
                             list.querySelectorAll('.autocomplete-item').forEach(item => {
                                 item.addEventListener('click', () => {
-                                    const feature = JSON.parse(item.dataset.feature);
+                                    const idx = parseInt(item.dataset.idx, 10);
+                                    const feature = currentFeatures[idx];
+                                    if (!feature) return;
                                     selectAddress(feature);
                                     list.style.display = 'none';
                                     input.value = feature.properties.label;
                                 });
                             });
                         } else {
+                            currentFeatures = [];
                             list.style.display = 'none';
                         }
-                    } catch (err) { console.error('Autocomplete error:', err); }
+                    } catch (err) { 
+                        console.error('Autocomplete error:', err); 
+                        currentFeatures = [];
+                        list.style.display = 'none';
+                    }
                 }, 300);
             });
 
