@@ -280,15 +280,15 @@
         }
 
         function scaleForZoom(zoom) {
-            if (zoom >= 19) return 1000;
-            if (zoom >= 18) return 2000;
+            if (zoom >= 18) return 1000;
+            if (zoom >= 17) return 2000;
             return 5000;
         }
 
         function zoomForScale(scale) {
-            if (scale === 1000) return 19;
-            if (scale === 2000) return 18;
-            return 17;
+            if (scale === 1000) return 18;
+            if (scale === 2000) return 17;
+            return 16;
         }
 
         function updateScaleButtons(scale) {
@@ -328,8 +328,8 @@
             L.GridLayer.prototype._initTile = function (tile) {
                 originalInitTile.call(this, tile);
                 const size = this.getTileSize();
-                tile.style.width = `${size.x + 1}px`;
-                tile.style.height = `${size.y + 1}px`;
+                tile.style.width = `${size.x + 2}px`;
+                tile.style.height = `${size.y + 2}px`;
             };
             L.GridLayer.prototype._initTile._overlapPatched = true;
         }
