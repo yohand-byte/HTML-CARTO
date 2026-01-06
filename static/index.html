@@ -354,6 +354,11 @@
                 const p = data.parcelle;
                 state.parcelle = p;
                 state.parcelleGeoJSON = data.geojson;
+                const parcellesList = (data.geojson?.features || [])
+                    .map(feature => feature.properties)
+                    .filter(Boolean)
+                    .map(props => `${props.section} ${props.numero}`)
+                    .filter((value, index, self) => self.indexOf(value) === index);
                 
                 content.innerHTML = `
                     <div class="cadastre-info">
@@ -361,6 +366,12 @@
                             <span class="cadastre-info-label">Parcelle sélectionnée :</span>
                             <span class="cadastre-info-value">${p.section} ${p.numero}</span>
                         </div>
+                        ${parcellesList.length > 1 ? `
+                        <div class="cadastre-info-row">
+                            <span class="cadastre-info-label">Parcelles détectées :</span>
+                            <span class="cadastre-info-value">${parcellesList.join(', ')}</span>
+                        </div>
+                        ` : ''}
                         <div class="cadastre-info-row">
                             <span class="cadastre-info-label">IDU :</span>
                             <span class="cadastre-info-value">${p.idu}</span>

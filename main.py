@@ -99,6 +99,30 @@ async def get_parcelle_at_point(lon: float, lat: float):
         "type": "Point",
         "coordinates": [lon, lat]
     })
+
+    def make_circle_polygon(radius: float):
+        import math
+        points = []
+        for i in range(32):
+            angle = (i / 32) * 2 * math.pi
+            dx = (radius / 111000) * math.cos(angle) / math.cos(math.radians(lat))
+            dy = (radius / 111000) * math.sin(angle)
+            points.append([lon + dx, lat + dy])
+        points.append(points[0])
+        return {"type": "Polygon", "coordinates": [points]}
+
+    def unique_features(features):
+        seen = set()
+        output = []
+        for feature in features:
+            props = feature.get("properties", {})
+            idu = props.get("idu")
+            key = idu or json.dumps(feature.get("geometry", {}), sort_keys=True)
+            if key in seen:
+                continue
+            seen.add(key)
+            output.append(feature)
+        return output
     
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
@@ -109,10 +133,29 @@ async def get_parcelle_at_point(lon: float, lat: float):
             resp.raise_for_status()
             data = resp.json()
             
-            if not data.get("features"):
+            features = data.get("features") or []
+            if not features:
                 return {"success": False, "message": "Aucune parcelle trouvée à ces coordonnées"}
-            
-            parcelle = data["features"][0]
+
+            # Si une seule parcelle est trouvée, on élargit légèrement la recherche
+            # pour capter les parcelles adjacentes quand un bâtiment chevauche 2 lots.
+            if len(features) == 1:
+                try:
+                    zone_geom = json.dumps(make_circle_polygon(6))
+                    zone_resp = await client.get(
+                        "https://apicarto.ign.fr/api/cadastre/parcelle",
+                        params={"geom": zone_geom}
+                    )
+                    zone_resp.raise_for_status()
+                    zone_data = zone_resp.json()
+                    zone_features = zone_data.get("features") or []
+                    if zone_features:
+                        features = unique_features(features + zone_features)
+                        data["features"] = features
+                except httpx.HTTPError:
+                    pass
+
+            parcelle = features[0]
             props = parcelle["properties"]
             
             return {
