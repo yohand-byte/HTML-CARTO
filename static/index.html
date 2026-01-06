@@ -58,9 +58,9 @@
         .map-minimap-marker { position: absolute; width: 10px; height: 10px; background: #1e3a5f; border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%); }
         .map-note { margin-top: 10px; color: #475569; font-size: 0.9rem; }
         .leaflet-container { background: #f8fafc; }
-        .leaflet-tile { image-rendering: auto; }
-        .leaflet-tile-container { transform: translateZ(0); }
-        .leaflet-pane .leaflet-tile { outline: 1px solid transparent; }
+        .leaflet-tile { image-rendering: auto; margin: -1px; border: 0; outline: 0; backface-visibility: hidden; transform: translateZ(0); }
+        .leaflet-tile-container { transform: translateZ(0); will-change: transform; }
+        .leaflet-pane { transform: translateZ(0); }
         .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
         .status-item { background: #f8fafc; padding: 20px; border-radius: 10px; display: flex; align-items: center; gap: 12px; }
         .status-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
@@ -272,49 +272,52 @@
             });
         }
 
+        function scaleMeta(scale) {
+            if (scale === 1000) return { barWidth: 25, label: '25 m' };
+            if (scale === 2000) return { barWidth: 50, label: '50 m' };
+            return { barWidth: 100, label: '100 m' };
+        }
+
+        function scaleForZoom(zoom) {
+            if (zoom >= 19) return 1000;
+            if (zoom >= 18) return 2000;
+            return 5000;
+        }
+
         function zoomForScale(scale) {
             if (scale === 1000) return 19;
             if (scale === 2000) return 18;
             return 17;
         }
 
-        function metersPerPixel(lat, zoom) {
-            const earthCircumference = 40075016.686;
-            return (earthCircumference * Math.cos(lat * Math.PI / 180)) / (256 * Math.pow(2, zoom));
-        }
-
-        function pickScaleMeters(targetMeters) {
-            const steps = [20, 25, 50, 100, 150, 200];
-            let picked = steps[0];
-            for (const step of steps) {
-                if (step <= targetMeters) picked = step;
-            }
-            return picked;
-        }
-
-        function updateScaleDisplay(map, elementId) {
-            if (!map) return;
-            const el = document.getElementById(elementId);
-            if (!el) return;
-            const center = map.getCenter();
-            const metersPx = metersPerPixel(center.lat, map.getZoom());
-            const targetPx = 100;
-            const targetMeters = metersPx * targetPx;
-            const scaleMeters = pickScaleMeters(targetMeters);
-            const barWidth = Math.max(20, Math.round(scaleMeters / metersPx));
-            el.innerHTML = `
-                <div><strong>Échelle : ${scaleMeters} m</strong></div>
-                <div class="map-scale-bar">
-                    <div class="bar" style="width: ${barWidth}px;"></div>
-                    <span>${scaleMeters} m</span>
-                </div>
-            `;
-        }
-
         function updateScaleButtons(scale) {
             document.querySelectorAll('.map-controls .scale-btn').forEach(btn => {
                 btn.classList.toggle('active', parseInt(btn.dataset.scale, 10) === scale);
             });
+        }
+
+        function updateScaleDisplays(scale) {
+            const meta = scaleMeta(scale);
+            const scaleDisplay = document.getElementById('scale-display');
+            if (scaleDisplay) {
+                scaleDisplay.innerHTML = `
+                    <div><strong>Échelle : ${meta.label}</strong></div>
+                    <div class="map-scale-bar">
+                        <div class="bar" style="width: ${meta.barWidth}px;"></div>
+                        <span>${meta.label}</span>
+                    </div>
+                `;
+            }
+            const mapScaleDisplay = document.getElementById('map-scale-display');
+            if (mapScaleDisplay) {
+                mapScaleDisplay.innerHTML = `
+                    <div><strong>Échelle : ${meta.label}</strong></div>
+                    <div class="map-scale-bar">
+                        <div class="bar" style="width: ${meta.barWidth}px;"></div>
+                        <span>${meta.label}</span>
+                    </div>
+                `;
+            }
         }
 
         function initCadastreFilters() {
@@ -488,9 +491,11 @@
 
             // Échelle métrique Leaflet pour coller au rendu officiel
             L.control.scale({ imperial: false, maxWidth: 150, position: 'bottomleft' }).addTo(state.cadastreMap);
-            const refreshCadastreScale = () => updateScaleDisplay(state.cadastreMap, 'scale-display');
-            state.cadastreMap.on('zoomend moveend', refreshCadastreScale);
-            refreshCadastreScale();
+            state.cadastreMap.on('zoomend', () => {
+                const nextScale = scaleForZoom(state.cadastreMap.getZoom());
+                updateScaleButtons(nextScale);
+                updateScaleDisplays(nextScale);
+            });
 
             // Légende dédiée au plan cadastral
             const legend = L.control({ position: 'topright' });
@@ -545,10 +550,7 @@
         function setScale(scale) {
             state.cadastreScale = scale;
             updateScaleButtons(scale);
-            const scaleDisplay = document.getElementById('scale-display');
-            if (scaleDisplay) updateScaleDisplay(state.cadastreMap, 'scale-display');
-            const mapScaleDisplay = document.getElementById('map-scale-display');
-            if (mapScaleDisplay) updateScaleDisplay(state.map, 'map-scale-display');
+            updateScaleDisplays(scale);
             
             if (state.cadastreMap && state.currentLocation) {
                 state.cadastreMap.setZoom(zoomForScale(scale));
@@ -589,9 +591,11 @@
                 "Cadastre": cadastreLayer
             }).addTo(state.map);
             L.control.scale({ imperial: false, maxWidth: 150, position: 'bottomleft' }).addTo(state.map);
-            const refreshMapScale = () => updateScaleDisplay(state.map, 'map-scale-display');
-            state.map.on('zoomend moveend', refreshMapScale);
-            refreshMapScale();
+            state.map.on('zoomend', () => {
+                const nextScale = scaleForZoom(state.map.getZoom());
+                updateScaleButtons(nextScale);
+                updateScaleDisplays(nextScale);
+            });
             state.parcelleLayer = L.featureGroup().addTo(state.map);
         }
 
