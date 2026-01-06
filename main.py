@@ -351,6 +351,11 @@ async def get_parcelle_at_point(lon: float, lat: float, debug: bool = False):
 
             parcelles = extract_parcelles(features)
             parcelles_geojson = {"type": "FeatureCollection", "features": features}
+            feature_by_id = {
+                feature.get("properties", {}).get("idu"): feature
+                for feature in features
+                if feature.get("properties", {}).get("idu")
+            }
 
             selected_parcel_ids = []
             principal_id = None
@@ -363,6 +368,9 @@ async def get_parcelle_at_point(lon: float, lat: float, debug: bool = False):
                 principal_id = select_parcel_by_point(parcel_shapes, point) or props.get("idu")
                 if principal_id:
                     selected_parcel_ids = [principal_id]
+            if not selected_parcel_ids and props.get("idu"):
+                principal_id = props.get("idu")
+                selected_parcel_ids = [principal_id]
             mode = "SINGLE_CONFIRMED"
             if buildings and len(selected_parcel_ids) > 1:
                 mode = "MULTI_PARCEL"
@@ -377,6 +385,7 @@ async def get_parcelle_at_point(lon: float, lat: float, debug: bool = False):
                         selected_center = (centroid.y, centroid.x)
                         break
             selected_bounds = bounds_from_ids(parcel_shapes, selected_parcel_ids)
+            principal_feature = feature_by_id.get(principal_id) or parcelle
 
             return {
                 "success": True,
@@ -391,17 +400,17 @@ async def get_parcelle_at_point(lon: float, lat: float, debug: bool = False):
                 "parcellesGeojson": parcelles_geojson,
                 "buildings": [item["feature"] for item in buildings],
                 "parcelle": {
-                    "idu": props.get("idu"),
-                    "numero": props.get("numero"),
-                    "section": props.get("section"),
-                    "feuille": props.get("feuille"),
-                    "contenance": props.get("contenance"),  # en m²
-                    "code_insee": props.get("code_insee"),
-                    "nom_commune": props.get("nom_com"),
-                    "code_departement": props.get("code_dep"),
+                    "idu": principal_feature.get("properties", {}).get("idu"),
+                    "numero": principal_feature.get("properties", {}).get("numero"),
+                    "section": principal_feature.get("properties", {}).get("section"),
+                    "feuille": principal_feature.get("properties", {}).get("feuille"),
+                    "contenance": principal_feature.get("properties", {}).get("contenance"),  # en m²
+                    "code_insee": principal_feature.get("properties", {}).get("code_insee"),
+                    "nom_commune": principal_feature.get("properties", {}).get("nom_com"),
+                    "code_departement": principal_feature.get("properties", {}).get("code_dep"),
                 },
-                "geometry": parcelle["geometry"],
-                "bbox": parcelle.get("bbox"),
+                "geometry": principal_feature.get("geometry"),
+                "bbox": principal_feature.get("bbox"),
                 "geojson": data,
                 "debug": {
                     "candidateParcelIds": [
