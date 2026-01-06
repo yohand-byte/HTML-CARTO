@@ -131,6 +131,7 @@
                 <div id="map"></div>
             </div>
             <div class="map-controls">
+                <button class="scale-btn" data-scale="1000">Échelle 1 : 1 000</button>
                 <button class="scale-btn active" data-scale="2000">Échelle 1 : 2 000</button>
                 <button class="scale-btn" data-scale="5000">Échelle 1 : 5 000</button>
                 <span style="color:#475569;font-weight:600;">(appliqué au mode cadastre)</span>
@@ -252,13 +253,23 @@
         }
 
         function initMapScaleControls() {
+            document.addEventListener('click', (event) => {
+                const btn = event.target.closest('.map-controls .scale-btn');
+                if (!btn) return;
+                const scale = parseInt(btn.dataset.scale, 10);
+                setScale(scale);
+            });
+        }
+
+        function scaleMeta(scale) {
+            if (scale === 1000) return { barWidth: 25, label: '25 m' };
+            if (scale === 2000) return { barWidth: 50, label: '50 m' };
+            return { barWidth: 100, label: '100 m' };
+        }
+
+        function updateScaleButtons(scale) {
             document.querySelectorAll('.map-controls .scale-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.map-controls .scale-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    const scale = parseInt(btn.dataset.scale, 10);
-                    setScale(scale);
-                });
+                btn.classList.toggle('active', parseInt(btn.dataset.scale, 10) === scale);
             });
         }
 
@@ -365,14 +376,15 @@
                         <div class="map-scale" id="scale-display">
                             <div><strong>Échelle 1 : ${state.cadastreScale}</strong></div>
                             <div class="map-scale-bar">
-                                <div class="bar" style="width: ${state.cadastreScale === 2000 ? 50 : 100}px;"></div>
-                                <span>${state.cadastreScale === 2000 ? '50 m' : '100 m'}</span>
+                                <div class="bar" style="width: ${scaleMeta(state.cadastreScale).barWidth}px;"></div>
+                                <span>${scaleMeta(state.cadastreScale).label}</span>
                             </div>
                         </div>
                     </div>
                     <div class="map-controls">
-                            <button class="scale-btn ${state.cadastreScale === 2000 ? 'active' : ''}" onclick="setScale(2000)">Échelle 1 : 2 000</button>
-                            <button class="scale-btn ${state.cadastreScale === 5000 ? 'active' : ''}" onclick="setScale(5000)">Échelle 1 : 5 000</button>
+                            <button class="scale-btn ${state.cadastreScale === 1000 ? 'active' : ''}" data-scale="1000">Échelle 1 : 1 000</button>
+                            <button class="scale-btn ${state.cadastreScale === 2000 ? 'active' : ''}" data-scale="2000">Échelle 1 : 2 000</button>
+                            <button class="scale-btn ${state.cadastreScale === 5000 ? 'active' : ''}" data-scale="5000">Échelle 1 : 5 000</button>
                         </div>
                         <p class="map-note">Fond « Plan Cadastral » officiel (IGN - Parcellaire Express) avec mise en évidence de la parcelle sélectionnée.</p>
                     `;
@@ -474,19 +486,21 @@
 
         function setScale(scale) {
             state.cadastreScale = scale;
+            updateScaleButtons(scale);
             const scaleDisplay = document.getElementById('scale-display');
             if (scaleDisplay) {
+                const meta = scaleMeta(scale);
                 scaleDisplay.innerHTML = `
                     <div><strong>Échelle 1 : ${scale}</strong></div>
                     <div class="map-scale-bar">
-                        <div class="bar" style="width: ${scale === 2000 ? 50 : 100}px;"></div>
-                        <span>${scale === 2000 ? '50 m' : '100 m'}</span>
+                        <div class="bar" style="width: ${meta.barWidth}px;"></div>
+                        <span>${meta.label}</span>
                     </div>
                 `;
             }
             
             if (state.cadastreMap && state.currentLocation) {
-                const zoom = scale === 2000 ? 18 : 17;
+                const zoom = scale === 1000 ? 19 : scale === 2000 ? 18 : 17;
                 state.cadastreMap.setZoom(zoom);
             }
         }
