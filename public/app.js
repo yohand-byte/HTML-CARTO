@@ -25,6 +25,23 @@
 
   window.captureReadyDone = false;
 
+  function enableTileOverlap(pixels = 2) {
+    if (!window.L || !L.GridLayer) return;
+    const proto = L.GridLayer.prototype;
+    if (proto._tileOverlapEnabled) return;
+    const originalInitTile = proto._initTile;
+    proto._initTile = function (tile) {
+      originalInitTile.call(this, tile);
+      const size = this.getTileSize();
+      const overlap = pixels * 2;
+      tile.style.width = `${size.x + overlap}px`;
+      tile.style.height = `${size.y + overlap}px`;
+      tile.style.marginLeft = `-${pixels}px`;
+      tile.style.marginTop = `-${pixels}px`;
+    };
+    proto._tileOverlapEnabled = true;
+  }
+
   function log(msg, type = "info") {
     if (!logBox) return;
     const div = document.createElement("div");
@@ -47,6 +64,7 @@
   }
 
   function initMap() {
+    enableTileOverlap(2);
     state.map = L.map("map").setView([46.6, 1.88], 6);
 
     const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {

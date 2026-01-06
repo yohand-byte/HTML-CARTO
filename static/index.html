@@ -179,7 +179,7 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            enableTileOverlap();
+            enableTileOverlap(2);
             initTabs();
             initSearch();
             initMap();
@@ -274,21 +274,21 @@
         }
 
         function scaleMeta(scale) {
-            if (scale === 1000) return { barWidth: 50, label: '50 m' };
-            if (scale === 2000) return { barWidth: 100, label: '100 m' };
-            return { barWidth: 200, label: '200 m' };
+            if (scale === 1000) return { barWidth: 25, label: '25 m' };
+            if (scale === 2000) return { barWidth: 50, label: '50 m' };
+            return { barWidth: 100, label: '100 m' };
         }
 
         function scaleForZoom(zoom) {
-            if (zoom >= 18) return 1000;
-            if (zoom >= 17) return 2000;
+            if (zoom >= 19) return 1000;
+            if (zoom >= 18) return 2000;
             return 5000;
         }
 
         function zoomForScale(scale) {
-            if (scale === 1000) return 18;
-            if (scale === 2000) return 17;
-            return 16;
+            if (scale === 1000) return 19;
+            if (scale === 2000) return 18;
+            return 17;
         }
 
         function updateScaleButtons(scale) {
@@ -321,17 +321,21 @@
             }
         }
 
-        function enableTileOverlap() {
+        function enableTileOverlap(pixels = 2) {
             if (!window.L || !L.GridLayer) return;
-            const originalInitTile = L.GridLayer.prototype._initTile;
-            if (L.GridLayer.prototype._initTile._overlapPatched) return;
-            L.GridLayer.prototype._initTile = function (tile) {
+            const proto = L.GridLayer.prototype;
+            if (proto._tileOverlapEnabled) return;
+            const originalInitTile = proto._initTile;
+            proto._initTile = function (tile) {
                 originalInitTile.call(this, tile);
                 const size = this.getTileSize();
-                tile.style.width = `${size.x + 2}px`;
-                tile.style.height = `${size.y + 2}px`;
+                const overlap = pixels * 2;
+                tile.style.width = `${size.x + overlap}px`;
+                tile.style.height = `${size.y + overlap}px`;
+                tile.style.marginLeft = `-${pixels}px`;
+                tile.style.marginTop = `-${pixels}px`;
             };
-            L.GridLayer.prototype._initTile._overlapPatched = true;
+            proto._tileOverlapEnabled = true;
         }
 
         function initCadastreFilters() {
@@ -414,6 +418,7 @@
                     .filter(Boolean)
                     .map(props => `${props.section} ${props.numero}`)
                     .filter((value, index, self) => self.indexOf(value) === index);
+                const scaleConfig = scaleMeta(state.cadastreScale);
                 
                 content.innerHTML = `
                     <div class="cadastre-info">
@@ -446,10 +451,10 @@
                             <div class="map-minimap-marker" style="left: 50%; top: 50%;"></div>
                         </div>
                         <div class="map-scale" id="scale-display">
-                            <div><strong>Échelle : 100 m</strong></div>
+                            <div><strong>Échelle : ${scaleConfig.label}</strong></div>
                             <div class="map-scale-bar">
-                                <div class="bar" style="width: 100px;"></div>
-                                <span>100 m</span>
+                                <div class="bar" style="width: ${scaleConfig.barWidth}px;"></div>
+                                <span>${scaleConfig.label}</span>
                             </div>
                         </div>
                     </div>
