@@ -57,10 +57,6 @@
         .map-minimap { position: absolute; top: 10px; left: 10px; width: 100px; height: 80px; background: #e8f4fc; border: 1px solid #999; border-radius: 4px; z-index: 1000; overflow: hidden; }
         .map-minimap-marker { position: absolute; width: 10px; height: 10px; background: #1e3a5f; border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%); }
         .map-note { margin-top: 10px; color: #475569; font-size: 0.9rem; }
-        .leaflet-container { background: #f8fafc; }
-        .leaflet-tile { image-rendering: auto; border: 0; outline: 0; backface-visibility: hidden; }
-        .leaflet-tile-container { transform: translateZ(0); will-change: transform; }
-        .leaflet-pane { transform: translateZ(0); }
         .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
         .status-item { background: #f8fafc; padding: 20px; border-radius: 10px; display: flex; align-items: center; gap: 12px; }
         .status-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
@@ -179,7 +175,6 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            enableTileOverlap(3);
             initTabs();
             initSearch();
             initMap();
@@ -318,34 +313,6 @@
                         <span>${meta.label}</span>
                     </div>
                 `;
-            }
-        }
-
-        function enableTileOverlap(pixels = 3) {
-            if (!window.L || !L.GridLayer) return;
-            const proto = L.GridLayer.prototype;
-            if (!proto._tileOverlapEnabled) {
-                const originalInitTile = proto._initTile;
-                proto._initTile = function (tile) {
-                    originalInitTile.call(this, tile);
-                    const size = this.getTileSize();
-                    const overlap = pixels * 2;
-                    tile.style.width = `${size.x + overlap}px`;
-                    tile.style.height = `${size.y + overlap}px`;
-                    tile.style.marginLeft = `-${pixels}px`;
-                    tile.style.marginTop = `-${pixels}px`;
-                };
-                proto._tileOverlapEnabled = true;
-            }
-            if (!proto._tilePosRounded) {
-                const originalGetTilePos = proto._getTilePos;
-                proto._getTilePos = function (coords) {
-                    const pos = originalGetTilePos.call(this, coords);
-                    pos.x = Math.round(pos.x);
-                    pos.y = Math.round(pos.y);
-                    return pos;
-                };
-                proto._tilePosRounded = true;
             }
         }
 
