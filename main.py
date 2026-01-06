@@ -237,13 +237,15 @@ async def get_parcelle_at_point(lon: float, lat: float):
                     if props.get("idu"):
                         intersected_parcels.add(props["idu"])
             if intersects:
-                filtered.append(building)
+                filtered.append({
+                    "feature": building,
+                    "shape": poly
+                })
         return filtered, intersected_parcels
 
-    def select_parcel_id(intersected_parcels, parcel_shapes):
+    def select_parcel_id(intersected_parcels, parcel_shapes, point):
         if len(intersected_parcels) == 1:
             return next(iter(intersected_parcels))
-        point = shape({"type": "Point", "coordinates": [lon, lat]})
         candidates = parcel_shapes
         if intersected_parcels:
             candidates = [
@@ -255,6 +257,13 @@ async def get_parcelle_at_point(lon: float, lat: float):
             return None
         closest = min(candidates, key=lambda item: item[1].centroid.distance(point))
         return closest[0].get("properties", {}).get("idu")
+
+    def select_building_center(filtered_buildings, point):
+        if not filtered_buildings:
+            return None
+        closest = min(filtered_buildings, key=lambda item: item["shape"].centroid.distance(point))
+        centroid = closest["shape"].centroid
+        return (centroid.y, centroid.x)
     
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
@@ -307,27 +316,38 @@ async def get_parcelle_at_point(lon: float, lat: float):
             bounds = compute_bounds(parcel_shapes)
             buildings = await fetch_buildings(bounds)
             buildings, intersected_parcels = filter_buildings(buildings, parcel_shapes)
+            point = shape({"type": "Point", "coordinates": [lon, lat]})
+            building_center = select_building_center(buildings, point)
 
             parcelles = extract_parcelles(features)
             parcelles_geojson = {"type": "FeatureCollection", "features": features}
 
             parcel_count = len(features)
             building_count = len(buildings)
-            if building_count == 1 and len(intersected_parcels) == 1:
+            selected_parcel_id = select_parcel_id(intersected_parcels, parcel_shapes, point) or props.get("idu")
+            if building_count >= 1 and selected_parcel_id:
                 mode = "SINGLE_CONFIRMED"
             elif parcel_count > 1 or building_count > 1 or len(intersected_parcels) > 1:
                 mode = "MULTI_PARCEL"
             else:
                 mode = "UNCERTAIN"
-            selected_parcel_id = select_parcel_id(intersected_parcels, parcel_shapes) or props.get("idu")
+            selected_center = None
+            if selected_parcel_id:
+                for feature, poly in parcel_shapes:
+                    if feature.get("properties", {}).get("idu") == selected_parcel_id:
+                        centroid = poly.centroid
+                        selected_center = (centroid.y, centroid.x)
+                        break
             
             return {
                 "success": True,
                 "mode": mode,
                 "selectedParcelId": selected_parcel_id,
+                "selectedParcelCenter": selected_center,
+                "selectedBuildingCenter": building_center,
                 "parcelles": parcelles,
                 "parcellesGeojson": parcelles_geojson,
-                "buildings": buildings,
+                "buildings": [item["feature"] for item in buildings],
                 "parcelle": {
                     "idu": props.get("idu"),
                     "numero": props.get("numero"),

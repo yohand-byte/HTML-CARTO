@@ -409,6 +409,11 @@
                     .filter((value, index, self) => self.indexOf(value) === index);
                 state.parcellesList = parcellesList;
                 renderCadastreInfo();
+                if (data.selectedBuildingCenter) {
+                    state.marker?.setLatLng([data.selectedBuildingCenter[0], data.selectedBuildingCenter[1]]);
+                } else if (data.selectedParcelCenter) {
+                    state.marker?.setLatLng([data.selectedParcelCenter[0], data.selectedParcelCenter[1]]);
+                }
                 updateMapParcelle();
                 
             } catch (err) {
