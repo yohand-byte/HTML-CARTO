@@ -129,6 +129,13 @@
             <h2>Carte Interactive</h2>
             <div class="map-container">
                 <div id="map"></div>
+                <div class="map-scale" id="map-scale-display">
+                    <div><strong>Échelle 1 : 2 000</strong></div>
+                    <div class="map-scale-bar">
+                        <div class="bar" style="width: 50px;"></div>
+                        <span>50 m</span>
+                    </div>
+                </div>
             </div>
             <div class="map-controls">
                 <button class="scale-btn" data-scale="1000">Échelle 1 : 1 000</button>
@@ -508,6 +515,18 @@
             if (scaleDisplay) {
                 const meta = scaleMeta(scale);
                 scaleDisplay.innerHTML = `
+                    <div><strong>Échelle 1 : ${scale}</strong></div>
+                    <div class="map-scale-bar">
+                        <div class="bar" style="width: ${meta.barWidth}px;"></div>
+                        <span>${meta.label}</span>
+                    </div>
+                `;
+            }
+
+            const mapScaleDisplay = document.getElementById('map-scale-display');
+            if (mapScaleDisplay) {
+                const meta = scaleMeta(scale);
+                mapScaleDisplay.innerHTML = `
                     <div><strong>Échelle 1 : ${scale}</strong></div>
                     <div class="map-scale-bar">
                         <div class="bar" style="width: ${meta.barWidth}px;"></div>
