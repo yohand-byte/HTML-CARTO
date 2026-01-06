@@ -573,6 +573,7 @@
                 "Plan IGN": planLayer,
                 "Cadastre": cadastreLayer
             }).addTo(state.map);
+            L.control.scale({ imperial: false, maxWidth: 150, position: 'bottomleft' }).addTo(state.map);
             state.parcelleLayer = L.featureGroup().addTo(state.map);
         }
 
