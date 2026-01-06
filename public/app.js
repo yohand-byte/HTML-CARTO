@@ -25,21 +25,32 @@
 
   window.captureReadyDone = false;
 
-  function enableTileOverlap(pixels = 2) {
+  function enableTileOverlap(pixels = 3) {
     if (!window.L || !L.GridLayer) return;
     const proto = L.GridLayer.prototype;
-    if (proto._tileOverlapEnabled) return;
-    const originalInitTile = proto._initTile;
-    proto._initTile = function (tile) {
-      originalInitTile.call(this, tile);
-      const size = this.getTileSize();
-      const overlap = pixels * 2;
-      tile.style.width = `${size.x + overlap}px`;
-      tile.style.height = `${size.y + overlap}px`;
-      tile.style.marginLeft = `-${pixels}px`;
-      tile.style.marginTop = `-${pixels}px`;
-    };
-    proto._tileOverlapEnabled = true;
+    if (!proto._tileOverlapEnabled) {
+      const originalInitTile = proto._initTile;
+      proto._initTile = function (tile) {
+        originalInitTile.call(this, tile);
+        const size = this.getTileSize();
+        const overlap = pixels * 2;
+        tile.style.width = `${size.x + overlap}px`;
+        tile.style.height = `${size.y + overlap}px`;
+        tile.style.marginLeft = `-${pixels}px`;
+        tile.style.marginTop = `-${pixels}px`;
+      };
+      proto._tileOverlapEnabled = true;
+    }
+    if (!proto._tilePosRounded) {
+      const originalGetTilePos = proto._getTilePos;
+      proto._getTilePos = function (coords) {
+        const pos = originalGetTilePos.call(this, coords);
+        pos.x = Math.round(pos.x);
+        pos.y = Math.round(pos.y);
+        return pos;
+      };
+      proto._tilePosRounded = true;
+    }
   }
 
   function log(msg, type = "info") {
@@ -64,7 +75,7 @@
   }
 
   function initMap() {
-    enableTileOverlap(2);
+    enableTileOverlap(3);
     state.map = L.map("map").setView([46.6, 1.88], 6);
 
     const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
