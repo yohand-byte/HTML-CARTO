@@ -239,6 +239,22 @@ async def get_parcelle_at_point(lon: float, lat: float):
             if intersects:
                 filtered.append(building)
         return filtered, intersected_parcels
+
+    def select_parcel_id(intersected_parcels, parcel_shapes):
+        if len(intersected_parcels) == 1:
+            return next(iter(intersected_parcels))
+        point = shape({"type": "Point", "coordinates": [lon, lat]})
+        candidates = parcel_shapes
+        if intersected_parcels:
+            candidates = [
+                (feature, poly)
+                for feature, poly in parcel_shapes
+                if feature.get("properties", {}).get("idu") in intersected_parcels
+            ]
+        if not candidates:
+            return None
+        closest = min(candidates, key=lambda item: item[1].centroid.distance(point))
+        return closest[0].get("properties", {}).get("idu")
     
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
@@ -250,6 +266,19 @@ async def get_parcelle_at_point(lon: float, lat: float):
             data = resp.json()
             
             features = data.get("features") or []
+            if not features:
+                try:
+                    zone_geom = json.dumps(make_circle_polygon(15))
+                    zone_resp = await client.get(
+                        "https://apicarto.ign.fr/api/cadastre/parcelle",
+                        params={"geom": zone_geom}
+                    )
+                    zone_resp.raise_for_status()
+                    zone_data = zone_resp.json()
+                    features = zone_data.get("features") or []
+                    data = zone_data if features else data
+                except httpx.HTTPError:
+                    pass
             if not features:
                 return {"success": False, "message": "Aucune parcelle trouvée à ces coordonnées"}
 
@@ -290,9 +319,7 @@ async def get_parcelle_at_point(lon: float, lat: float):
                 mode = "MULTI_PARCEL"
             else:
                 mode = "UNCERTAIN"
-            selected_parcel_id = props.get("idu")
-            if len(intersected_parcels) == 1:
-                selected_parcel_id = next(iter(intersected_parcels))
+            selected_parcel_id = select_parcel_id(intersected_parcels, parcel_shapes) or props.get("idu")
             
             return {
                 "success": True,
