@@ -118,13 +118,6 @@
             </div>
             <div class="map-container">
                 <div id="map"></div>
-                <div class="map-scale" id="map-scale-display">
-                    <div><strong>Échelle : 100 m</strong></div>
-                    <div class="map-scale-bar">
-                        <div class="bar" style="width: 100px;"></div>
-                        <span>100 m</span>
-                    </div>
-                </div>
             </div>
             <div class="map-controls">
                 <button class="scale-btn" data-scale="1000">Échelle 1 : 1 000</button>
@@ -246,7 +239,7 @@
         function scaleMeta(scale) {
             if (scale === 1000) return { barWidth: 25, label: '25 m' };
             if (scale === 2000) return { barWidth: 100, label: '100 m' };
-            return { barWidth: 200, label: '200 m' };
+            return { barWidth: 300, label: '300 m' };
         }
 
         function scaleForZoom(zoom) {
@@ -274,17 +267,8 @@
         }
 
         function updateScaleDisplays(scale) {
-            const meta = scaleMeta(scale);
             const mapScaleDisplay = document.getElementById('map-scale-display');
-            if (mapScaleDisplay) {
-                mapScaleDisplay.innerHTML = `
-                    <div><strong>Échelle : ${meta.label}</strong></div>
-                    <div class="map-scale-bar">
-                        <div class="bar" style="width: ${meta.barWidth}px;"></div>
-                        <span>${meta.label}</span>
-                    </div>
-                `;
-            }
+            if (mapScaleDisplay) mapScaleDisplay.innerHTML = '';
         }
 
         function initBaseFilters() {
@@ -460,6 +444,16 @@
             }
         }
 
+        function updateScaleBarLabel(scaleControl, scale) {
+            if (!scaleControl || !scaleControl._container) return;
+            const meta = scaleMeta(scale);
+            const label = scaleControl._container.querySelector('.leaflet-control-scale-line');
+            if (label) {
+                label.textContent = meta.label;
+                label.style.width = `${meta.barWidth}px`;
+            }
+        }
+
         function initMap() {
             state.map = L.map('map').setView([46.603354, 1.888334], 6);
             const orthoLayer = createOrthoWmsLayer(state.map);
@@ -471,16 +465,19 @@
                 cadastre: cadastreLayer,
             };
             setBaseLayer(state.baseLayerKey);
-            L.control.scale({ imperial: false, maxWidth: 200, position: 'bottomleft' }).addTo(state.map);
+            const scaleControl = L.control.scale({ imperial: false, maxWidth: 300, position: 'bottomleft' });
+            scaleControl.addTo(state.map);
             state.map.on('zoomend', () => {
                 const nextScale = scaleForZoom(state.map.getZoom());
                 updateScaleButtons(nextScale);
                 updateScaleDisplays(nextScale);
+                updateScaleBarLabel(scaleControl, nextScale);
             });
             state.parcelleLayer = L.featureGroup().addTo(state.map);
             state.cadastreLegend = createCadastreLegend();
             updateScaleButtons(state.cadastreScale);
             updateScaleDisplays(state.cadastreScale);
+            updateScaleBarLabel(scaleControl, state.cadastreScale);
         }
 
         function createOrthoWmsLayer(map) {
@@ -684,8 +681,9 @@
         function updateMapParcelle() {
             if (!state.parcelleGeoJSON || !state.parcelleLayer) return;
             state.parcelleLayer.clearLayers();
+            if (state.baseLayerKey !== 'cadastre') return;
             L.geoJSON(state.parcelleGeoJSON, {
-                style: { color: '#16a34a', weight: 3, fillColor: '#dcfce7', fillOpacity: 0.5 },
+                style: { color: '#dc2626', weight: 3, fillColor: 'transparent', fillOpacity: 0 },
                 onEachFeature: (feature, layer) => {
                     const p = feature.properties;
                     layer.bindPopup(`<strong>${p.idu}</strong><br>Section: ${p.section} - N° ${p.numero}<br>Surface: ${p.contenance} m²`);
