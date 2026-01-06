@@ -4,10 +4,11 @@ Backend FastAPI qui sert l’UI Leaflet et expose les APIs cadastre. L’authent
 
 ## Fonctionnalités clés
 - Autocomplétion et géocodage via API Adresse (`/api/autocomplete`, `/api/geocode`).
-- Parcelles IGN : `/api/cadastre/parcelle` (point) et `/api/cadastre/parcelles-zone` (zone circulaire).
+- Parcelles IGN : `/api/cadastre/parcelle` (point + ajout parcelles adjacentes si besoin) et `/api/cadastre/parcelles-zone` (zone circulaire).
 - Orthophoto : génération d’URL WMTS et proxy (`/api/orthophoto`, `/api/orthophoto/proxy`).
 - Statut des services : `/api/status`.
 - Front Leaflet servi par FastAPI : `/` (UI complète) et `/static` (assets).
+- Boutons d’échelle 1:1000 / 1:2000 / 1:5000 sur Carte et Cadastre avec barre 25 m / 50 m / 100 m.
 
 ## Arborescence utile
 ```
