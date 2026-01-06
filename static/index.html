@@ -147,6 +147,11 @@
             baseLayerKey: 'cadastre',
             baseLayers: {},
             cadastreLegend: null,
+            parcelleGeoJSONAll: null,
+            parcelleGeoJSONSelected: null,
+            showNeighborParcels: false,
+            cadastreMode: null,
+            parcellesList: [],
         };
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -385,38 +390,23 @@
                 
                 const p = data.parcelle;
                 state.parcelle = p;
-                state.parcelleGeoJSON = data.geojson;
-                const parcellesList = (data.geojson?.features || [])
+                state.cadastreMode = data.mode || 'MULTI_PARCEL';
+                const candidates = data.parcellesGeojson?.features || data.geojson?.features || [];
+                const selectedId = data.selectedParcelId || p?.idu;
+                const selectedFeature = candidates.find(feature => feature.properties?.idu === selectedId) || candidates[0];
+                state.parcelleGeoJSONAll = { type: 'FeatureCollection', features: candidates };
+                state.parcelleGeoJSONSelected = selectedFeature
+                    ? { type: 'FeatureCollection', features: [selectedFeature] }
+                    : null;
+                state.showNeighborParcels = state.cadastreMode === 'MULTI_PARCEL';
+
+                const parcellesList = candidates
                     .map(feature => feature.properties)
                     .filter(Boolean)
                     .map(props => `${props.section} ${props.numero}`)
                     .filter((value, index, self) => self.indexOf(value) === index);
-                if (info) {
-                    info.innerHTML = `
-                        <div class="cadastre-info-row">
-                            <span class="cadastre-info-label">Parcelle sélectionnée :</span>
-                            <span class="cadastre-info-value">${p.section} ${p.numero}</span>
-                        </div>
-                        ${parcellesList.length > 1 ? `
-                        <div class="cadastre-info-row">
-                            <span class="cadastre-info-label">Parcelles détectées :</span>
-                            <span class="cadastre-info-value">${parcellesList.join(', ')}</span>
-                        </div>
-                        ` : ''}
-                        <div class="cadastre-info-row">
-                            <span class="cadastre-info-label">IDU :</span>
-                            <span class="cadastre-info-value">${p.idu}</span>
-                        </div>
-                        <div class="cadastre-info-row">
-                            <span class="cadastre-info-label">Superficie :</span>
-                            <span class="cadastre-info-value">${p.contenance} m²</span>
-                        </div>
-                        <div class="cadastre-info-row">
-                            <span class="cadastre-info-label">Commune :</span>
-                            <span class="cadastre-info-value">${p.nom_commune} (${p.code_insee})</span>
-                        </div>
-                    `;
-                }
+                state.parcellesList = parcellesList;
+                renderCadastreInfo();
                 updateMapParcelle();
                 
             } catch (err) {
@@ -424,6 +414,55 @@
                 if (info) {
                     info.innerHTML = `<div class="empty-state"><p>Erreur: ${err.message}</p></div>`;
                 }
+            }
+        }
+
+        function renderCadastreInfo() {
+            const info = document.getElementById('cadastre-info');
+            if (!info || !state.parcelle) return;
+            const showNeighbors = state.cadastreMode === 'MULTI_PARCEL'
+                || (state.cadastreMode === 'UNCERTAIN' && state.showNeighborParcels);
+            info.innerHTML = `
+                <div class="cadastre-info-row">
+                    <span class="cadastre-info-label">Parcelle sélectionnée :</span>
+                    <span class="cadastre-info-value">${state.parcelle.section} ${state.parcelle.numero}</span>
+                </div>
+                ${showNeighbors && state.parcellesList.length > 1 ? `
+                <div class="cadastre-info-row">
+                    <span class="cadastre-info-label">Parcelles détectées :</span>
+                    <span class="cadastre-info-value">${state.parcellesList.join(', ')}</span>
+                </div>
+                ` : ''}
+                <div class="cadastre-info-row">
+                    <span class="cadastre-info-label">IDU :</span>
+                    <span class="cadastre-info-value">${state.parcelle.idu}</span>
+                </div>
+                <div class="cadastre-info-row">
+                    <span class="cadastre-info-label">Superficie :</span>
+                    <span class="cadastre-info-value">${state.parcelle.contenance} m²</span>
+                </div>
+                <div class="cadastre-info-row">
+                    <span class="cadastre-info-label">Commune :</span>
+                    <span class="cadastre-info-value">${state.parcelle.nom_commune} (${state.parcelle.code_insee})</span>
+                </div>
+                ${state.cadastreMode === 'UNCERTAIN' && state.parcellesList.length > 1 ? `
+                <div class="cadastre-info-row">
+                    <span class="cadastre-info-label">Incertitude :</span>
+                    <span class="cadastre-info-value">
+                        <button class="scale-btn" type="button" id="toggle-neighbors">
+                            ${state.showNeighborParcels ? 'Masquer les voisines' : 'Afficher les voisines'}
+                        </button>
+                    </span>
+                </div>
+                ` : ''}
+            `;
+            const toggleBtn = document.getElementById('toggle-neighbors');
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', () => {
+                    state.showNeighborParcels = !state.showNeighborParcels;
+                    renderCadastreInfo();
+                    updateMapParcelle();
+                });
             }
         }
 
@@ -679,10 +718,14 @@
         }
 
         function updateMapParcelle() {
-            if (!state.parcelleGeoJSON || !state.parcelleLayer) return;
+            if (!state.parcelleLayer) return;
             state.parcelleLayer.clearLayers();
             if (state.baseLayerKey !== 'cadastre') return;
-            L.geoJSON(state.parcelleGeoJSON, {
+            const showNeighbors = state.cadastreMode === 'MULTI_PARCEL'
+                || (state.cadastreMode === 'UNCERTAIN' && state.showNeighborParcels);
+            const geojson = showNeighbors ? state.parcelleGeoJSONAll : state.parcelleGeoJSONSelected;
+            if (!geojson) return;
+            L.geoJSON(geojson, {
                 style: { color: '#dc2626', weight: 3, fillColor: 'transparent', fillOpacity: 0 },
                 onEachFeature: (feature, layer) => {
                     const p = feature.properties;

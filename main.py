@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import json
+from shapely.geometry import shape
 
 app = FastAPI(title="Cadastre Intelligent", version="1.0.0")
 
@@ -123,6 +124,121 @@ async def get_parcelle_at_point(lon: float, lat: float):
             seen.add(key)
             output.append(feature)
         return output
+
+    def extract_parcelles(features):
+        parcelles = []
+        for feature in features:
+            props = feature.get("properties", {})
+            parcelles.append({
+                "idu": props.get("idu"),
+                "numero": props.get("numero"),
+                "section": props.get("section"),
+                "feuille": props.get("feuille"),
+                "contenance": props.get("contenance"),
+                "code_insee": props.get("code_insee"),
+                "nom_commune": props.get("nom_com"),
+                "code_departement": props.get("code_dep"),
+            })
+        return parcelles
+
+    def build_parcel_shapes(features):
+        shapes = []
+        for feature in features:
+            try:
+                geom = feature.get("geometry")
+                if not geom:
+                    continue
+                poly = shape(geom)
+                if poly.is_empty:
+                    continue
+                shapes.append((feature, poly))
+            except Exception:
+                continue
+        return shapes
+
+    def compute_bounds(parcel_shapes):
+        if not parcel_shapes:
+            return None
+        minx = min(poly.bounds[0] for _, poly in parcel_shapes)
+        miny = min(poly.bounds[1] for _, poly in parcel_shapes)
+        maxx = max(poly.bounds[2] for _, poly in parcel_shapes)
+        maxy = max(poly.bounds[3] for _, poly in parcel_shapes)
+        return (miny, minx, maxy, maxx)
+
+    async def fetch_buildings(bbox):
+        if not bbox:
+            return []
+        south, west, north, east = bbox
+        query = (
+            "[out:json][timeout:25];"
+            f"(way['building']({south},{west},{north},{east}););"
+            "out body;>;out skel qt;"
+        )
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    "https://overpass-api.de/api/interpreter",
+                    data=query,
+                    headers={"Content-Type": "application/x-www-form-urlencoded"}
+                )
+                resp.raise_for_status()
+                data = resp.json()
+        except Exception:
+            return []
+
+        nodes = {}
+        ways = []
+        for element in data.get("elements", []):
+            if element.get("type") == "node":
+                nodes[element["id"]] = (element["lon"], element["lat"])
+            elif element.get("type") == "way":
+                ways.append(element)
+
+        buildings = []
+        for way in ways:
+            coords = []
+            for node_id in way.get("nodes", []):
+                node = nodes.get(node_id)
+                if node:
+                    coords.append([node[0], node[1]])
+            if len(coords) < 4:
+                continue
+            if coords[0] != coords[-1]:
+                coords.append(coords[0])
+            feature = {
+                "type": "Feature",
+                "properties": {
+                    "id": way.get("id"),
+                    "source": "osm"
+                },
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [coords]
+                }
+            }
+            buildings.append(feature)
+        return buildings
+
+    def filter_buildings(buildings, parcel_shapes):
+        filtered = []
+        intersected_parcels = set()
+        for building in buildings:
+            try:
+                poly = shape(building.get("geometry"))
+            except Exception:
+                continue
+            if poly.is_empty:
+                continue
+            intersects = False
+            for feature, parcel_poly in parcel_shapes:
+                if poly.intersects(parcel_poly):
+                    intersects = True
+                    props = feature.get("properties", {})
+                    if props.get("idu"):
+                        intersected_parcels.add(props["idu"])
+            if intersects:
+                filtered.append(building)
+        return filtered, intersected_parcels
     
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
@@ -157,9 +273,31 @@ async def get_parcelle_at_point(lon: float, lat: float):
 
             parcelle = features[0]
             props = parcelle["properties"]
+
+            parcel_shapes = build_parcel_shapes(features)
+            bounds = compute_bounds(parcel_shapes)
+            buildings = await fetch_buildings(bounds)
+            buildings, intersected_parcels = filter_buildings(buildings, parcel_shapes)
+
+            parcelles = extract_parcelles(features)
+            parcelles_geojson = {"type": "FeatureCollection", "features": features}
+
+            parcel_count = len(features)
+            building_count = len(buildings)
+            if parcel_count == 1 and building_count == 1 and len(intersected_parcels) == 1:
+                mode = "SINGLE_CONFIRMED"
+            elif parcel_count > 1 or building_count > 1 or len(intersected_parcels) > 1:
+                mode = "MULTI_PARCEL"
+            else:
+                mode = "UNCERTAIN"
             
             return {
                 "success": True,
+                "mode": mode,
+                "selectedParcelId": props.get("idu"),
+                "parcelles": parcelles,
+                "parcellesGeojson": parcelles_geojson,
+                "buildings": buildings,
                 "parcelle": {
                     "idu": props.get("idu"),
                     "numero": props.get("numero"),
