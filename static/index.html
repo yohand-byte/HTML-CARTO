@@ -42,7 +42,7 @@
         .scale-btn { padding: 10px 20px; background: #fff; border: 2px solid #333; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; }
         .scale-btn:hover { background: #f0f0f0; }
         .scale-btn.active { background: #1e3a5f; color: white; border-color: #1e3a5f; }
-        .base-layer-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px 18px; margin-bottom: 12px; }
+        .base-layer-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 18px; margin-bottom: 12px; }
         .base-layer-list label { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: #1e293b; }
         .map-legend { position: absolute; top: 10px; left: 10px; background: white; border: 1px solid #ccc; border-radius: 6px; padding: 10px; font-size: 0.75rem; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
         .map-legend h4 { font-size: 0.7rem; margin-bottom: 6px; color: #333; }
@@ -106,7 +106,6 @@
         <div class="panel" id="panel-map">
             <h2>Carte Interactive</h2>
             <div class="base-layer-list" id="base-layer-list">
-                <label><input type="radio" name="baseLayer" value="osm"> OpenStreetMap</label>
                 <label><input type="radio" name="baseLayer" value="ortho"> Orthophoto IGN (WMS)</label>
                 <label><input type="radio" name="baseLayer" value="planign"> Plan IGN</label>
                 <label><input type="radio" name="baseLayer" value="cadastre" checked> Cadastre</label>
@@ -150,7 +149,7 @@
             map: null,
             marker: null,
             parcelleLayer: null,
-            cadastreScale: 2000,
+            cadastreScale: 1000,
             parcelle: null,
             baseLayerKey: 'cadastre',
             baseLayers: {},
@@ -246,8 +245,8 @@
 
         function scaleMeta(scale) {
             if (scale === 1000) return { barWidth: 25, label: '25 m' };
-            if (scale === 2000) return { barWidth: 50, label: '50 m' };
-            return { barWidth: 100, label: '100 m' };
+            if (scale === 2000) return { barWidth: 100, label: '100 m' };
+            return { barWidth: 200, label: '200 m' };
         }
 
         function scaleForZoom(zoom) {
@@ -263,8 +262,14 @@
         }
 
         function updateScaleButtons(scale) {
+            const allowed = getAllowedScales(state.baseLayerKey);
             document.querySelectorAll('.map-controls .scale-btn').forEach(btn => {
-                btn.classList.toggle('active', parseInt(btn.dataset.scale, 10) === scale);
+                const value = parseInt(btn.dataset.scale, 10);
+                const enabled = allowed.includes(value);
+                btn.disabled = !enabled;
+                btn.style.opacity = enabled ? '1' : '0.4';
+                btn.style.pointerEvents = enabled ? 'auto' : 'none';
+                btn.classList.toggle('active', enabled && value === scale);
             });
         }
 
@@ -292,6 +297,18 @@
             setBaseLayer(state.baseLayerKey);
         }
 
+        function getAllowedScales(baseKey) {
+            if (baseKey === 'ortho') return [1000];
+            if (baseKey === 'cadastre') return [1000];
+            if (baseKey === 'planign') return [2000, 5000];
+            return [1000, 2000, 5000];
+        }
+
+        function getDefaultScale(baseKey) {
+            const allowed = getAllowedScales(baseKey);
+            return allowed[0];
+        }
+
         function setBaseLayer(key) {
             state.baseLayerKey = key;
             if (!state.map) return;
@@ -309,6 +326,10 @@
                 if (layer) layer.addTo(state.map);
                 if (state.cadastreLegend) state.cadastreLegend.remove();
             }
+            const nextScale = getAllowedScales(key).includes(state.cadastreScale)
+                ? state.cadastreScale
+                : getDefaultScale(key);
+            setScale(nextScale, { keepMapView: true });
             document.querySelectorAll('input[name="baseLayer"]').forEach(input => {
                 input.checked = input.value === key;
             });
@@ -422,14 +443,16 @@
             }
         }
 
-        function setScale(scale) {
+        function setScale(scale, options = {}) {
             state.cadastreScale = scale;
             updateScaleButtons(scale);
             updateScaleDisplays(scale);
 
             if (state.map) {
                 const zoom = zoomForScale(scale);
-                if (state.currentLocation) {
+                if (options.keepMapView) {
+                    state.map.setZoom(zoom);
+                } else if (state.currentLocation) {
                     state.map.setView([state.currentLocation.lat, state.currentLocation.lon], zoom);
                 } else {
                     state.map.setZoom(zoom);
@@ -439,17 +462,10 @@
 
         function initMap() {
             state.map = L.map('map').setView([46.603354, 1.888334], 6);
-            const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap'
-            });
             const orthoLayer = createOrthoWmsLayer(state.map);
-            const planLayer = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
-                attribution: '© IGN',
-                maxZoom: 19
-            });
+            const planLayer = createPlanIgnWmsLayer(state.map);
             const cadastreLayer = createCadastreWmsLayer(state.map);
             state.baseLayers = {
-                osm: osmLayer,
                 ortho: orthoLayer,
                 planign: planLayer,
                 cadastre: cadastreLayer,
@@ -566,6 +582,64 @@
 
             function onAdd() {
                 map.attributionControl.addAttribution('© IGN - Cadastre');
+                map.on('moveend zoomend resize', refreshOverlay);
+                refreshOverlay();
+            }
+
+            function onRemove() {
+                map.off('moveend zoomend resize', refreshOverlay);
+                if (overlay) {
+                    layer.removeLayer(overlay);
+                    overlay = null;
+                }
+            }
+
+            layer.on('add', onAdd);
+            layer.on('remove', onRemove);
+            return layer;
+        }
+
+        function createPlanIgnWmsLayer(map) {
+            let overlay = null;
+            const layer = L.layerGroup();
+
+            function buildWmsUrl() {
+                const bounds = map.getBounds();
+                const size = map.getSize();
+                const sw = map.options.crs.project(bounds.getSouthWest());
+                const ne = map.options.crs.project(bounds.getNorthEast());
+                const bbox = [sw.x, sw.y, ne.x, ne.y].join(',');
+                const params = new URLSearchParams({
+                    SERVICE: 'WMS',
+                    REQUEST: 'GetMap',
+                    VERSION: '1.3.0',
+                    LAYERS: 'GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2',
+                    STYLES: '',
+                    FORMAT: 'image/png',
+                    TRANSPARENT: 'FALSE',
+                    CRS: 'EPSG:3857',
+                    BBOX: bbox,
+                    WIDTH: size.x,
+                    HEIGHT: size.y,
+                    CACHEBUSTER: Date.now().toString()
+                });
+                return `https://data.geopf.fr/wms-r?${params.toString()}`;
+            }
+
+            function refreshOverlay() {
+                const url = buildWmsUrl();
+                const bounds = map.getBounds();
+                if (overlay) {
+                    overlay.setUrl(url);
+                    overlay.setBounds(bounds);
+                } else {
+                    overlay = L.imageOverlay(url, bounds, { opacity: 1, crossOrigin: true });
+                    layer.addLayer(overlay);
+                }
+            }
+
+            function onAdd() {
+                map.attributionControl.addAttribution('© IGN - Plan');
                 map.on('moveend zoomend resize', refreshOverlay);
                 refreshOverlay();
             }
