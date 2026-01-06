@@ -58,7 +58,7 @@
         .map-minimap-marker { position: absolute; width: 10px; height: 10px; background: #1e3a5f; border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%); }
         .map-note { margin-top: 10px; color: #475569; font-size: 0.9rem; }
         .leaflet-container { background: #f8fafc; }
-        .leaflet-tile { image-rendering: auto; margin: -1px; border: 0; outline: 0; backface-visibility: hidden; transform: translateZ(0); }
+        .leaflet-tile { image-rendering: auto; border: 0; outline: 0; backface-visibility: hidden; }
         .leaflet-tile-container { transform: translateZ(0); will-change: transform; }
         .leaflet-pane { transform: translateZ(0); }
         .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
@@ -134,10 +134,10 @@
             <div class="map-container">
                 <div id="map"></div>
                 <div class="map-scale" id="map-scale-display">
-                    <div><strong>Échelle : 50 m</strong></div>
+                    <div><strong>Échelle : 100 m</strong></div>
                     <div class="map-scale-bar">
-                        <div class="bar" style="width: 50px;"></div>
-                        <span>50 m</span>
+                        <div class="bar" style="width: 100px;"></div>
+                        <span>100 m</span>
                     </div>
                 </div>
             </div>
@@ -179,6 +179,7 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
+            enableTileOverlap();
             initTabs();
             initSearch();
             initMap();
@@ -273,9 +274,9 @@
         }
 
         function scaleMeta(scale) {
-            if (scale === 1000) return { barWidth: 25, label: '25 m' };
-            if (scale === 2000) return { barWidth: 50, label: '50 m' };
-            return { barWidth: 100, label: '100 m' };
+            if (scale === 1000) return { barWidth: 50, label: '50 m' };
+            if (scale === 2000) return { barWidth: 100, label: '100 m' };
+            return { barWidth: 200, label: '200 m' };
         }
 
         function scaleForZoom(zoom) {
@@ -318,6 +319,19 @@
                     </div>
                 `;
             }
+        }
+
+        function enableTileOverlap() {
+            if (!window.L || !L.GridLayer) return;
+            const originalInitTile = L.GridLayer.prototype._initTile;
+            if (L.GridLayer.prototype._initTile._overlapPatched) return;
+            L.GridLayer.prototype._initTile = function (tile) {
+                originalInitTile.call(this, tile);
+                const size = this.getTileSize();
+                tile.style.width = `${size.x + 1}px`;
+                tile.style.height = `${size.y + 1}px`;
+            };
+            L.GridLayer.prototype._initTile._overlapPatched = true;
         }
 
         function initCadastreFilters() {
@@ -432,10 +446,10 @@
                             <div class="map-minimap-marker" style="left: 50%; top: 50%;"></div>
                         </div>
                         <div class="map-scale" id="scale-display">
-                            <div><strong>Échelle : 50 m</strong></div>
+                            <div><strong>Échelle : 100 m</strong></div>
                             <div class="map-scale-bar">
-                                <div class="bar" style="width: 50px;"></div>
-                                <span>50 m</span>
+                                <div class="bar" style="width: 100px;"></div>
+                                <span>100 m</span>
                             </div>
                         </div>
                     </div>
@@ -490,7 +504,7 @@
             }
 
             // Échelle métrique Leaflet pour coller au rendu officiel
-            L.control.scale({ imperial: false, maxWidth: 150, position: 'bottomleft' }).addTo(state.cadastreMap);
+            L.control.scale({ imperial: false, maxWidth: 200, position: 'bottomleft' }).addTo(state.cadastreMap);
             state.cadastreMap.on('zoomend', () => {
                 const nextScale = scaleForZoom(state.cadastreMap.getZoom());
                 updateScaleButtons(nextScale);
@@ -590,7 +604,7 @@
                 "Plan IGN": planLayer,
                 "Cadastre": cadastreLayer
             }).addTo(state.map);
-            L.control.scale({ imperial: false, maxWidth: 150, position: 'bottomleft' }).addTo(state.map);
+            L.control.scale({ imperial: false, maxWidth: 200, position: 'bottomleft' }).addTo(state.map);
             state.map.on('zoomend', () => {
                 const nextScale = scaleForZoom(state.map.getZoom());
                 updateScaleButtons(nextScale);
