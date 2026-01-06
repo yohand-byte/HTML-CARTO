@@ -472,9 +472,7 @@
             const planLayer = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
                 maxZoom: 19,
             });
-            const orthoLayer = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
-                maxZoom: 20,
-            });
+            const orthoLayer = createOrthoWmsLayer(state.cadastreMap);
 
             if (state.cadastreBase === 'ortho') {
                 orthoLayer.addTo(state.cadastreMap);
@@ -569,10 +567,7 @@
             const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap'
             });
-            const orthoLayer = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
-                attribution: '© IGN',
-                maxZoom: 19
-            });
+            const orthoLayer = createOrthoWmsLayer(state.map);
             const planLayer = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
                 attribution: '© IGN',
                 maxZoom: 19
@@ -599,12 +594,12 @@
 
         function initOrthoMap() {
             state.orthoMap = L.map('ortho-map').setView([46.603354, 1.888334], 6);
-            initOrthoWms(state.orthoMap);
+            createOrthoWmsLayer(state.orthoMap).addTo(state.orthoMap);
         }
 
-        function initOrthoWms(map) {
+        function createOrthoWmsLayer(map) {
             let overlay = null;
-            map.attributionControl.addAttribution('© IGN - Géoplateforme');
+            const layer = L.layerGroup();
 
             function buildWmsUrl() {
                 const bounds = map.getBounds();
@@ -637,12 +632,27 @@
                     overlay.setBounds(bounds);
                 } else {
                     overlay = L.imageOverlay(url, bounds, { opacity: 1, crossOrigin: true });
-                    overlay.addTo(map);
+                    layer.addLayer(overlay);
                 }
             }
 
-            map.on('moveend zoomend resize', refreshOverlay);
-            refreshOverlay();
+            function onAdd() {
+                map.attributionControl.addAttribution('© IGN - Géoplateforme');
+                map.on('moveend zoomend resize', refreshOverlay);
+                refreshOverlay();
+            }
+
+            function onRemove() {
+                map.off('moveend zoomend resize', refreshOverlay);
+                if (overlay) {
+                    layer.removeLayer(overlay);
+                    overlay = null;
+                }
+            }
+
+            layer.on('add', onAdd);
+            layer.on('remove', onRemove);
+            return layer;
         }
 
         function updateMap() {
