@@ -267,6 +267,12 @@
             return { barWidth: 100, label: '100 m' };
         }
 
+        function zoomForScale(scale) {
+            if (scale === 1000) return 19;
+            if (scale === 2000) return 18;
+            return 17;
+        }
+
         function updateScaleButtons(scale) {
             document.querySelectorAll('.map-controls .scale-btn').forEach(btn => {
                 btn.classList.toggle('active', parseInt(btn.dataset.scale, 10) === scale);
@@ -500,8 +506,16 @@
             }
             
             if (state.cadastreMap && state.currentLocation) {
-                const zoom = scale === 1000 ? 19 : scale === 2000 ? 18 : 17;
-                state.cadastreMap.setZoom(zoom);
+                state.cadastreMap.setZoom(zoomForScale(scale));
+            }
+
+            if (state.map) {
+                const zoom = zoomForScale(scale);
+                if (state.currentLocation) {
+                    state.map.setView([state.currentLocation.lat, state.currentLocation.lon], zoom);
+                } else {
+                    state.map.setZoom(zoom);
+                }
             }
         }
 
