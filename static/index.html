@@ -37,16 +37,13 @@
         .info-card .value { font-size: 1.1rem; color: #1e3a5f; font-weight: 600; }
         .info-card .subvalue { font-size: 0.9rem; color: #64748b; margin-top: 4px; }
         .map-container { position: relative; }
-        #map { height: 550px; border-radius: 10px; border: 2px solid #e2e8f0; }
-        #ortho-map { height: 500px; border-radius: 10px; border: 2px solid #e2e8f0; }
-        #cadastre-map { height: 600px; border-radius: 10px; border: 2px solid #333; background: #fff; }
+        #map { height: 600px; border-radius: 10px; border: 2px solid #333; background: #fff; }
         .map-controls { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; align-items: center; }
         .scale-btn { padding: 10px 20px; background: #fff; border: 2px solid #333; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; }
         .scale-btn:hover { background: #f0f0f0; }
         .scale-btn.active { background: #1e3a5f; color: white; border-color: #1e3a5f; }
-        .cadastre-filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
-        .filter-pill { padding: 10px 16px; border: 1px solid #cbd5e1; border-radius: 20px; background: white; cursor: pointer; font-weight: 600; color: #1e293b; }
-        .filter-pill.active { background: #1e3a5f; color: white; border-color: #1e3a5f; }
+        .base-layer-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px 18px; margin-bottom: 12px; }
+        .base-layer-list label { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: #1e293b; }
         .map-legend { position: absolute; top: 10px; left: 10px; background: white; border: 1px solid #ccc; border-radius: 6px; padding: 10px; font-size: 0.75rem; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
         .map-legend h4 { font-size: 0.7rem; margin-bottom: 6px; color: #333; }
         .map-legend-item { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
@@ -89,9 +86,7 @@
         
         <div class="tabs">
             <button class="tab active" data-tab="geocode">📍 Géocodage</button>
-            <button class="tab" data-tab="cadastre">📋 Cadastre</button>
             <button class="tab" data-tab="map">🗺️ Carte</button>
-            <button class="tab" data-tab="orthophoto">🛰️ Orthophoto</button>
             <button class="tab" data-tab="status">⚙️ Status APIs</button>
         </div>
         
@@ -108,25 +103,20 @@
             </div>
         </div>
         
-        <div class="panel" id="panel-cadastre">
-            <h2>Plan Cadastral</h2>
-            <div class="cadastre-filters">
-                <button class="filter-pill active" data-base="cadastre">Plan cadastral</button>
-                <button class="filter-pill" data-base="planign">Plan IGN</button>
-                <button class="filter-pill" data-base="ortho">Orthophoto</button>
-            </div>
-            <div id="cadastre-content">
-                <div class="empty-state">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                    </svg>
-                    <p>Sélectionnez une adresse pour voir le plan cadastral</p>
-                </div>
-            </div>
-        </div>
-        
         <div class="panel" id="panel-map">
             <h2>Carte Interactive</h2>
+            <div class="base-layer-list" id="base-layer-list">
+                <label><input type="radio" name="baseLayer" value="osm"> OpenStreetMap</label>
+                <label><input type="radio" name="baseLayer" value="ortho"> Orthophoto IGN (WMS)</label>
+                <label><input type="radio" name="baseLayer" value="planign"> Plan IGN</label>
+                <label><input type="radio" name="baseLayer" value="cadastre" checked> Cadastre</label>
+            </div>
+            <div id="cadastre-info" class="cadastre-info">
+                <div class="cadastre-info-row">
+                    <span class="cadastre-info-label">Parcelle sélectionnée :</span>
+                    <span class="cadastre-info-value">Aucune</span>
+                </div>
+            </div>
             <div class="map-container">
                 <div id="map"></div>
                 <div class="map-scale" id="map-scale-display">
@@ -141,13 +131,7 @@
                 <button class="scale-btn" data-scale="1000">Échelle 1 : 1 000</button>
                 <button class="scale-btn active" data-scale="2000">Échelle 1 : 2 000</button>
                 <button class="scale-btn" data-scale="5000">Échelle 1 : 5 000</button>
-                <span style="color:#475569;font-weight:600;">(appliqué au mode cadastre)</span>
             </div>
-        </div>
-        
-        <div class="panel" id="panel-orthophoto">
-            <h2>Vue Aérienne (Orthophoto)</h2>
-            <div id="ortho-map"></div>
         </div>
         
         <div class="panel" id="panel-status">
@@ -164,24 +148,22 @@
             currentInsee: null,
             currentAddress: null,
             map: null,
-            orthoMap: null,
-            cadastreMap: null,
             marker: null,
-            orthoMarker: null,
             parcelleLayer: null,
             cadastreScale: 2000,
             parcelle: null,
-            cadastreBase: 'cadastre',
+            baseLayerKey: 'cadastre',
+            baseLayers: {},
+            cadastreLegend: null,
         };
 
         document.addEventListener('DOMContentLoaded', () => {
             initTabs();
             initSearch();
             initMap();
-            initOrthoMap();
             checkStatus();
             initMapScaleControls();
-            initCadastreFilters();
+            initBaseFilters();
         });
 
         function initTabs() {
@@ -193,12 +175,6 @@
                     document.getElementById(`panel-${tab.dataset.tab}`).classList.add('active');
                     if (tab.dataset.tab === 'map' && state.map) {
                         setTimeout(() => state.map.invalidateSize(), 100);
-                    }
-                    if (tab.dataset.tab === 'orthophoto' && state.orthoMap) {
-                        setTimeout(() => state.orthoMap.invalidateSize(), 100);
-                    }
-                    if (tab.dataset.tab === 'cadastre' && state.cadastreMap) {
-                        setTimeout(() => state.cadastreMap.invalidateSize(), 100);
                     }
                 });
             });
@@ -294,16 +270,6 @@
 
         function updateScaleDisplays(scale) {
             const meta = scaleMeta(scale);
-            const scaleDisplay = document.getElementById('scale-display');
-            if (scaleDisplay) {
-                scaleDisplay.innerHTML = `
-                    <div><strong>Échelle : ${meta.label}</strong></div>
-                    <div class="map-scale-bar">
-                        <div class="bar" style="width: ${meta.barWidth}px;"></div>
-                        <span>${meta.label}</span>
-                    </div>
-                `;
-            }
             const mapScaleDisplay = document.getElementById('map-scale-display');
             if (mapScaleDisplay) {
                 mapScaleDisplay.innerHTML = `
@@ -316,14 +282,35 @@
             }
         }
 
-        function initCadastreFilters() {
-            document.querySelectorAll('.cadastre-filters .filter-pill').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.cadastre-filters .filter-pill').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    state.cadastreBase = btn.dataset.base;
-                    initCadastreMap();
+        function initBaseFilters() {
+            document.querySelectorAll('input[name="baseLayer"]').forEach(input => {
+                input.addEventListener('change', () => {
+                    if (!input.checked) return;
+                    setBaseLayer(input.value);
                 });
+            });
+            setBaseLayer(state.baseLayerKey);
+        }
+
+        function setBaseLayer(key) {
+            state.baseLayerKey = key;
+            if (!state.map) return;
+            Object.values(state.baseLayers).forEach(layer => {
+                if (state.map.hasLayer(layer)) state.map.removeLayer(layer);
+            });
+            if (key === 'cadastre') {
+                state.baseLayers.planign.addTo(state.map);
+                state.baseLayers.cadastre.addTo(state.map);
+                if (state.cadastreLegend && !state.map.hasLayer(state.cadastreLegend)) {
+                    state.cadastreLegend.addTo(state.map);
+                }
+            } else {
+                const layer = state.baseLayers[key];
+                if (layer) layer.addTo(state.map);
+                if (state.cadastreLegend) state.cadastreLegend.remove();
+            }
+            document.querySelectorAll('input[name="baseLayer"]').forEach(input => {
+                input.checked = input.value === key;
             });
         }
 
@@ -337,7 +324,6 @@
             updateGeocodePanel(props, coords);
             await loadParcelle();
             updateMap();
-            updateOrthoMap();
         }
 
         function updateGeocodePanel(props, coords) {
@@ -375,8 +361,10 @@
 
         async function loadParcelle() {
             if (!state.currentLocation) return;
-            const content = document.getElementById('cadastre-content');
-            content.innerHTML = '<div class="loading">Chargement du plan cadastral</div>';
+            const info = document.getElementById('cadastre-info');
+            if (info) {
+                info.innerHTML = '<div class="loading">Chargement du plan cadastral</div>';
+            }
             
             try {
                 const { lon, lat } = state.currentLocation;
@@ -384,7 +372,9 @@
                 const data = await resp.json();
                 
                 if (!data.success) {
-                    content.innerHTML = '<div class="empty-state"><p>Aucune parcelle trouvée à cette adresse</p></div>';
+                    if (info) {
+                        info.innerHTML = '<div class="empty-state"><p>Aucune parcelle trouvée à cette adresse</p></div>';
+                    }
                     return;
                 }
                 
@@ -396,10 +386,8 @@
                     .filter(Boolean)
                     .map(props => `${props.section} ${props.numero}`)
                     .filter((value, index, self) => self.indexOf(value) === index);
-                const scaleConfig = scaleMeta(state.cadastreScale);
-                
-                content.innerHTML = `
-                    <div class="cadastre-info">
+                if (info) {
+                    info.innerHTML = `
                         <div class="cadastre-info-row">
                             <span class="cadastre-info-label">Parcelle sélectionnée :</span>
                             <span class="cadastre-info-value">${p.section} ${p.numero}</span>
@@ -422,124 +410,15 @@
                             <span class="cadastre-info-label">Commune :</span>
                             <span class="cadastre-info-value">${p.nom_commune} (${p.code_insee})</span>
                         </div>
-                    </div>
-                        <div class="map-container" style="position: relative;">
-                            <div id="cadastre-map"></div>
-                        <div class="map-minimap" id="minimap">
-                            <div class="map-minimap-marker" style="left: 50%; top: 50%;"></div>
-                        </div>
-                        <div class="map-scale" id="scale-display">
-                            <div><strong>Échelle : ${scaleConfig.label}</strong></div>
-                            <div class="map-scale-bar">
-                                <div class="bar" style="width: ${scaleConfig.barWidth}px;"></div>
-                                <span>${scaleConfig.label}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="map-controls">
-                            <button class="scale-btn ${state.cadastreScale === 1000 ? 'active' : ''}" data-scale="1000">Échelle 1 : 1 000</button>
-                            <button class="scale-btn ${state.cadastreScale === 2000 ? 'active' : ''}" data-scale="2000">Échelle 1 : 2 000</button>
-                            <button class="scale-btn ${state.cadastreScale === 5000 ? 'active' : ''}" data-scale="5000">Échelle 1 : 5 000</button>
-                        </div>
-                        <p class="map-note">Fond « Plan Cadastral » officiel (IGN - Parcellaire Express) avec mise en évidence de la parcelle sélectionnée.</p>
                     `;
-                
-                initCadastreMap();
+                }
+                updateMapParcelle();
                 
             } catch (err) {
                 console.error('Cadastre error:', err);
-                content.innerHTML = `<div class="empty-state"><p>Erreur: ${err.message}</p></div>`;
-            }
-        }
-
-        function initCadastreMap() {
-            if (state.cadastreMap) {
-                state.cadastreMap.remove();
-            }
-            
-            const { lat, lon } = state.currentLocation;
-            const zoom = zoomForScale(state.cadastreScale);
-            
-            state.cadastreMap = L.map('cadastre-map', {
-                zoomControl: true,
-                attributionControl: false
-            }).setView([lat, lon], zoom);
-            
-            const cadastreLayer = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
-                maxZoom: 25,
-                opacity: 1
-            });
-            const planLayer = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
-                maxZoom: 19,
-            });
-            const orthoLayer = createOrthoWmsLayer(state.cadastreMap);
-
-            if (state.cadastreBase === 'ortho') {
-                orthoLayer.addTo(state.cadastreMap);
-                cadastreLayer.addTo(state.cadastreMap);
-            } else if (state.cadastreBase === 'planign') {
-                planLayer.addTo(state.cadastreMap);
-                cadastreLayer.addTo(state.cadastreMap);
-            } else {
-                planLayer.addTo(state.cadastreMap);
-                cadastreLayer.addTo(state.cadastreMap);
-            }
-
-            // Échelle métrique Leaflet pour coller au rendu officiel
-            L.control.scale({ imperial: false, maxWidth: 200, position: 'bottomleft' }).addTo(state.cadastreMap);
-            state.cadastreMap.on('zoomend', () => {
-                const nextScale = scaleForZoom(state.cadastreMap.getZoom());
-                updateScaleButtons(nextScale);
-                updateScaleDisplays(nextScale);
-            });
-
-            // Légende dédiée au plan cadastral
-            const legend = L.control({ position: 'topright' });
-            legend.onAdd = function () {
-                const div = L.DomUtil.create('div', 'map-legend');
-                div.innerHTML = `
-                    <h4>Légende</h4>
-                    <div class="map-legend-item"><span class="map-legend-color" style="background:#dc2626;"></span> Parcelle ciblée</div>
-                    <div class="map-legend-item"><span class="map-legend-color" style="background:#e0f2fe;"></span> Parcelles voisines</div>
-                    <div class="map-legend-item"><span class="map-legend-color" style="background:#000;"></span> Fond cadastral IGN</div>
-                `;
-                return div;
-            };
-            legend.addTo(state.cadastreMap);
-            
-            // Parcelle sélectionnée en surbrillance
-            if (state.parcelleGeoJSON) {
-                L.geoJSON(state.parcelleGeoJSON, {
-                    style: {
-                        color: '#dc2626',
-                        weight: 3,
-                        fillColor: 'transparent',
-                        fillOpacity: 0,
-                        dashArray: '10, 5'
-                    }
-                }).addTo(state.cadastreMap);
-            }
-            
-            // Marqueur
-            L.marker([lat, lon], {
-                icon: L.divIcon({
-                    className: 'custom-marker',
-                    html: '<div style="width: 12px; height: 12px; background: #dc2626; border: 2px solid white; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
-                    iconSize: [12, 12],
-                    iconAnchor: [6, 6]
-                })
-            }).addTo(state.cadastreMap);
-            
-            // Numéro de parcelle
-            if (state.parcelle) {
-                L.marker([lat, lon], {
-                    icon: L.divIcon({
-                        className: 'parcelle-label',
-                        html: `<div style="background: transparent; color: #dc2626; font-weight: bold; font-size: 14px; text-shadow: 1px 1px 0 white, -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white;">${state.parcelle.numero.replace(/^0+/, '')}</div>`,
-                        iconSize: [25, 20],
-                        iconAnchor: [25, -10]
-                    })
-                }).addTo(state.cadastreMap);
+                if (info) {
+                    info.innerHTML = `<div class="empty-state"><p>Erreur: ${err.message}</p></div>`;
+                }
             }
         }
 
@@ -547,10 +426,6 @@
             state.cadastreScale = scale;
             updateScaleButtons(scale);
             updateScaleDisplays(scale);
-            
-            if (state.cadastreMap && state.currentLocation) {
-                state.cadastreMap.setZoom(zoomForScale(scale));
-            }
 
             if (state.map) {
                 const zoom = zoomForScale(scale);
@@ -572,17 +447,14 @@
                 attribution: '© IGN',
                 maxZoom: 19
             });
-            const cadastreLayer = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
-                attribution: '© IGN',
-                maxZoom: 20
-            });
-            osmLayer.addTo(state.map);
-            L.control.layers({ 
-                "OpenStreetMap": osmLayer, 
-                "Orthophoto IGN": orthoLayer, 
-                "Plan IGN": planLayer,
-                "Cadastre": cadastreLayer
-            }).addTo(state.map);
+            const cadastreLayer = createCadastreWmsLayer(state.map);
+            state.baseLayers = {
+                osm: osmLayer,
+                ortho: orthoLayer,
+                planign: planLayer,
+                cadastre: cadastreLayer,
+            };
+            setBaseLayer(state.baseLayerKey);
             L.control.scale({ imperial: false, maxWidth: 200, position: 'bottomleft' }).addTo(state.map);
             state.map.on('zoomend', () => {
                 const nextScale = scaleForZoom(state.map.getZoom());
@@ -590,11 +462,9 @@
                 updateScaleDisplays(nextScale);
             });
             state.parcelleLayer = L.featureGroup().addTo(state.map);
-        }
-
-        function initOrthoMap() {
-            state.orthoMap = L.map('ortho-map').setView([46.603354, 1.888334], 6);
-            createOrthoWmsLayer(state.orthoMap).addTo(state.orthoMap);
+            state.cadastreLegend = createCadastreLegend();
+            updateScaleButtons(state.cadastreScale);
+            updateScaleDisplays(state.cadastreScale);
         }
 
         function createOrthoWmsLayer(map) {
@@ -655,21 +525,86 @@
             return layer;
         }
 
+        function createCadastreWmsLayer(map) {
+            let overlay = null;
+            const layer = L.layerGroup();
+
+            function buildWmsUrl() {
+                const bounds = map.getBounds();
+                const size = map.getSize();
+                const sw = map.options.crs.project(bounds.getSouthWest());
+                const ne = map.options.crs.project(bounds.getNorthEast());
+                const bbox = [sw.x, sw.y, ne.x, ne.y].join(',');
+                const params = new URLSearchParams({
+                    SERVICE: 'WMS',
+                    REQUEST: 'GetMap',
+                    VERSION: '1.3.0',
+                    LAYERS: 'CADASTRALPARCELS.PARCELLAIRE_EXPRESS',
+                    STYLES: '',
+                    FORMAT: 'image/png',
+                    TRANSPARENT: 'TRUE',
+                    CRS: 'EPSG:3857',
+                    BBOX: bbox,
+                    WIDTH: size.x,
+                    HEIGHT: size.y,
+                    CACHEBUSTER: Date.now().toString()
+                });
+                return `https://data.geopf.fr/wms-r?${params.toString()}`;
+            }
+
+            function refreshOverlay() {
+                const url = buildWmsUrl();
+                const bounds = map.getBounds();
+                if (overlay) {
+                    overlay.setUrl(url);
+                    overlay.setBounds(bounds);
+                } else {
+                    overlay = L.imageOverlay(url, bounds, { opacity: 1, crossOrigin: true });
+                    layer.addLayer(overlay);
+                }
+            }
+
+            function onAdd() {
+                map.attributionControl.addAttribution('© IGN - Cadastre');
+                map.on('moveend zoomend resize', refreshOverlay);
+                refreshOverlay();
+            }
+
+            function onRemove() {
+                map.off('moveend zoomend resize', refreshOverlay);
+                if (overlay) {
+                    layer.removeLayer(overlay);
+                    overlay = null;
+                }
+            }
+
+            layer.on('add', onAdd);
+            layer.on('remove', onRemove);
+            return layer;
+        }
+
+        function createCadastreLegend() {
+            const legend = L.control({ position: 'topright' });
+            legend.onAdd = function () {
+                const div = L.DomUtil.create('div', 'map-legend');
+                div.innerHTML = `
+                    <h4>Légende</h4>
+                    <div class="map-legend-item"><span class="map-legend-color" style="background:#dc2626;"></span> Parcelle ciblée</div>
+                    <div class="map-legend-item"><span class="map-legend-color" style="background:#e0f2fe;"></span> Parcelles voisines</div>
+                    <div class="map-legend-item"><span class="map-legend-color" style="background:#000;"></span> Fond cadastral IGN</div>
+                `;
+                return div;
+            };
+            return legend;
+        }
+
         function updateMap() {
             if (!state.currentLocation || !state.map) return;
             const { lat, lon } = state.currentLocation;
             if (state.marker) state.map.removeLayer(state.marker);
             state.marker = L.marker([lat, lon]).addTo(state.map).bindPopup('📍 ' + state.currentAddress).openPopup();
-            state.map.setView([lat, lon], 18);
+            state.map.setView([lat, lon], zoomForScale(state.cadastreScale));
             updateMapParcelle();
-        }
-
-        function updateOrthoMap() {
-            if (!state.currentLocation || !state.orthoMap) return;
-            const { lat, lon } = state.currentLocation;
-            if (state.orthoMarker) state.orthoMap.removeLayer(state.orthoMarker);
-            state.orthoMarker = L.marker([lat, lon]).addTo(state.orthoMap).bindPopup('📍 ' + state.currentAddress).openPopup();
-            state.orthoMap.setView([lat, lon], 18);
         }
 
         function updateMapParcelle() {
