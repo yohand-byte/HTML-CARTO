@@ -334,8 +334,8 @@
             state.currentAddress = props.label;
 
             updateGeocodePanel(props, coords);
-            await loadParcelle();
             updateMap();
+            await loadParcelle();
         }
 
         function updateGeocodePanel(props, coords) {
@@ -390,29 +390,45 @@
                     return;
                 }
                 
-                const p = data.parcelle;
-                state.parcelle = p;
-                state.cadastreMode = data.mode || 'MULTI_PARCEL';
                 const candidates = data.parcellesGeojson?.features || data.geojson?.features || [];
-                const selectedId = data.selectedParcelId || p?.idu;
+                state.cadastreMode = data.mode || 'UNCERTAIN';
+                const selectedIds = data.selectedParcelIds || [];
+                const selectedId = data.selectedParcelId || selectedIds[0];
                 const selectedFeature = candidates.find(feature => feature.properties?.idu === selectedId) || candidates[0];
+                state.parcelle = selectedFeature?.properties || data.parcelle;
                 state.parcelleGeoJSONAll = { type: 'FeatureCollection', features: candidates };
-                state.parcelleGeoJSONSelected = selectedFeature
-                    ? { type: 'FeatureCollection', features: [selectedFeature] }
-                    : null;
+                state.parcelleGeoJSONSelected = selectedIds.length
+                    ? {
+                        type: 'FeatureCollection',
+                        features: candidates.filter(feature => selectedIds.includes(feature.properties?.idu))
+                    }
+                    : (selectedFeature ? { type: 'FeatureCollection', features: [selectedFeature] } : null);
                 state.showNeighborParcels = state.cadastreMode === 'MULTI_PARCEL';
 
-                const parcellesList = candidates
-                    .map(feature => feature.properties)
+                const parcellesList = (selectedIds.length ? selectedIds : candidates.map(f => f.properties?.idu))
                     .filter(Boolean)
-                    .map(props => `${props.section} ${props.numero}`)
-                    .filter((value, index, self) => self.indexOf(value) === index);
+                    .map(idu => {
+                        const f = candidates.find(feature => feature.properties?.idu === idu);
+                        if (!f) return idu;
+                        return `${f.properties.section} ${f.properties.numero}`;
+                    });
                 state.parcellesList = parcellesList;
                 renderCadastreInfo();
                 if (data.selectedBuildingCenter) {
                     state.marker?.setLatLng([data.selectedBuildingCenter[0], data.selectedBuildingCenter[1]]);
                 } else if (data.selectedParcelCenter) {
                     state.marker?.setLatLng([data.selectedParcelCenter[0], data.selectedParcelCenter[1]]);
+                }
+                if (data.selectedBuildingBounds) {
+                    state.map.fitBounds([
+                        [data.selectedBuildingBounds[0], data.selectedBuildingBounds[1]],
+                        [data.selectedBuildingBounds[2], data.selectedBuildingBounds[3]]
+                    ]);
+                } else if (data.selectedParcelBounds) {
+                    state.map.fitBounds([
+                        [data.selectedParcelBounds[0], data.selectedParcelBounds[1]],
+                        [data.selectedParcelBounds[2], data.selectedParcelBounds[3]]
+                    ]);
                 }
                 updateMapParcelle();
                 
@@ -427,8 +443,7 @@
         function renderCadastreInfo() {
             const info = document.getElementById('cadastre-info');
             if (!info || !state.parcelle) return;
-            const showNeighbors = state.cadastreMode === 'MULTI_PARCEL'
-                || (state.cadastreMode === 'UNCERTAIN' && state.showNeighborParcels);
+            const showNeighbors = state.cadastreMode === 'MULTI_PARCEL';
             info.innerHTML = `
                 <div class="cadastre-info-row">
                     <span class="cadastre-info-label">Parcelle sélectionnée :</span>
@@ -436,7 +451,7 @@
                 </div>
                 ${showNeighbors && state.parcellesList.length > 1 ? `
                 <div class="cadastre-info-row">
-                    <span class="cadastre-info-label">Parcelles détectées :</span>
+                    <span class="cadastre-info-label">Parcelles concernées :</span>
                     <span class="cadastre-info-value">${state.parcellesList.join(', ')}</span>
                 </div>
                 ` : ''}
@@ -452,25 +467,7 @@
                     <span class="cadastre-info-label">Commune :</span>
                     <span class="cadastre-info-value">${state.parcelle.nom_commune} (${state.parcelle.code_insee})</span>
                 </div>
-                ${state.cadastreMode === 'UNCERTAIN' && state.parcellesList.length > 1 ? `
-                <div class="cadastre-info-row">
-                    <span class="cadastre-info-label">Incertitude :</span>
-                    <span class="cadastre-info-value">
-                        <button class="scale-btn" type="button" id="toggle-neighbors">
-                            ${state.showNeighborParcels ? 'Masquer les voisines' : 'Afficher les voisines'}
-                        </button>
-                    </span>
-                </div>
-                ` : ''}
             `;
-            const toggleBtn = document.getElementById('toggle-neighbors');
-            if (toggleBtn) {
-                toggleBtn.addEventListener('click', () => {
-                    state.showNeighborParcels = !state.showNeighborParcels;
-                    renderCadastreInfo();
-                    updateMapParcelle();
-                });
-            }
         }
 
         function setScale(scale, options = {}) {
@@ -728,9 +725,7 @@
             if (!state.parcelleLayer) return;
             state.parcelleLayer.clearLayers();
             if (state.baseLayerKey !== 'cadastre') return;
-            const showNeighbors = state.cadastreMode === 'MULTI_PARCEL'
-                || (state.cadastreMode === 'UNCERTAIN' && state.showNeighborParcels);
-            const geojson = showNeighbors ? state.parcelleGeoJSONAll : state.parcelleGeoJSONSelected;
+            const geojson = state.parcelleGeoJSONSelected;
             if (!geojson) return;
             L.geoJSON(geojson, {
                 style: { color: '#dc2626', weight: 3, fillColor: 'transparent', fillOpacity: 0 },
