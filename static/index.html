@@ -310,10 +310,12 @@
                 if (state.cadastreLegend && !state.map.hasLayer(state.cadastreLegend)) {
                     state.cadastreLegend.addTo(state.map);
                 }
+                updateMapParcelle();
             } else {
                 const layer = state.baseLayers[key];
                 if (layer) layer.addTo(state.map);
                 if (state.cadastreLegend) state.cadastreLegend.remove();
+                if (state.parcelleLayer) state.parcelleLayer.clearLayers();
             }
             const nextScale = getAllowedScales(key).includes(state.cadastreScale)
                 ? state.cadastreScale

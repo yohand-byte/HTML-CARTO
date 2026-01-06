@@ -284,17 +284,20 @@ async def get_parcelle_at_point(lon: float, lat: float):
 
             parcel_count = len(features)
             building_count = len(buildings)
-            if parcel_count == 1 and building_count == 1 and len(intersected_parcels) == 1:
+            if building_count == 1 and len(intersected_parcels) == 1:
                 mode = "SINGLE_CONFIRMED"
             elif parcel_count > 1 or building_count > 1 or len(intersected_parcels) > 1:
                 mode = "MULTI_PARCEL"
             else:
                 mode = "UNCERTAIN"
+            selected_parcel_id = props.get("idu")
+            if len(intersected_parcels) == 1:
+                selected_parcel_id = next(iter(intersected_parcels))
             
             return {
                 "success": True,
                 "mode": mode,
-                "selectedParcelId": props.get("idu"),
+                "selectedParcelId": selected_parcel_id,
                 "parcelles": parcelles,
                 "parcellesGeojson": parcelles_geojson,
                 "buildings": buildings,
