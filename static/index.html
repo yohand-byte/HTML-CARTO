@@ -483,7 +483,7 @@
             }).setView([lat, lon], zoom);
             
             const cadastreLayer = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
-                maxZoom: 20,
+                maxZoom: 25,
                 opacity: 1
             });
             const planLayer = L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
@@ -554,7 +554,7 @@
                     icon: L.divIcon({
                         className: 'parcelle-label',
                         html: `<div style="background: transparent; color: #dc2626; font-weight: bold; font-size: 14px; text-shadow: 1px 1px 0 white, -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white;">${state.parcelle.numero.replace(/^0+/, '')}</div>`,
-                        iconSize: [50, 20],
+                        iconSize: [25, 20],
                         iconAnchor: [25, -10]
                     })
                 }).addTo(state.cadastreMap);
@@ -617,7 +617,7 @@
             state.orthoMap = L.map('ortho-map').setView([46.603354, 1.888334], 6);
             L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
                 attribution: '© IGN - Géoplateforme',
-                maxZoom: 20
+                maxZoom: 10
             }).addTo(state.orthoMap);
         }
 
