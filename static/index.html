@@ -58,7 +58,7 @@
         .map-minimap-marker { position: absolute; width: 10px; height: 10px; background: #1e3a5f; border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%); }
         .map-note { margin-top: 10px; color: #475569; font-size: 0.9rem; }
         .leaflet-container { background: #fff; }
-        .leaflet-tile { image-rendering: auto; border: 0; outline: 1px solid transparent; backface-visibility: hidden; }
+        .leaflet-tile { image-rendering: auto; border: 0; outline: none; box-shadow: 0 0 0 0 transparent; transform: translateZ(0); backface-visibility: hidden; }
         .leaflet-tile-container { transform: translateZ(0); will-change: transform; }
         .leaflet-pane { transform: translateZ(0); }
         .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }

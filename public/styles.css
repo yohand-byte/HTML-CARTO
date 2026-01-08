@@ -67,8 +67,11 @@ main {
   background: #fff;
 }
 .leaflet-tile {
-  outline: 1px solid transparent;
+  image-rendering: auto;
   border: 0;
+  outline: none;
+  box-shadow: 0 0 0 0 transparent;
+  transform: translateZ(0);
   backface-visibility: hidden;
 }
 #log {
