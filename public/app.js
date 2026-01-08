@@ -25,6 +25,7 @@
 
   window.captureReadyDone = false;
 
+
   function log(msg, type = "info") {
     if (!logBox) return;
     const div = document.createElement("div");
