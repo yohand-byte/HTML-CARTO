@@ -63,6 +63,14 @@ main {
   border: 1px solid #e2e8f0;
   box-shadow: 0 2px 10px rgba(0,0,0,0.06);
 }
+.leaflet-container {
+  background: #fff;
+}
+.leaflet-tile {
+  outline: 1px solid transparent;
+  border: 0;
+  backface-visibility: hidden;
+}
 #log {
   background: white;
   border: 1px solid #e2e8f0;

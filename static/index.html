@@ -57,8 +57,12 @@
         .map-minimap { position: absolute; top: 10px; left: 10px; width: 100px; height: 80px; background: #e8f4fc; border: 1px solid #999; border-radius: 4px; z-index: 1000; overflow: hidden; }
         .map-minimap-marker { position: absolute; width: 10px; height: 10px; background: #1e3a5f; border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%); }
         .map-note { margin-top: 10px; color: #475569; font-size: 0.9rem; }
-        .leaflet-container { background: #f8fafc; }
-        .leaflet-tile { image-rendering: auto; border: 0; outline: 0; backface-visibility: hidden; }
+<<<<<<< HEAD
+        .leaflet-container { background: #fff; }
+        .leaflet-tile { image-rendering: auto; border: 0; outline: 1px solid transparent; backface-visibility: hidden; }
+        .leaflet-container { background: #fff; }
+        .leaflet-tile { image-rendering: auto; border: 0; outline: 1px solid transparent; backface-visibility: hidden; }
+>>>>>>> e4913f9 (Fix grid seams)
         .leaflet-tile-container { transform: translateZ(0); will-change: transform; }
         .leaflet-pane { transform: translateZ(0); }
         .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
@@ -83,14 +87,14 @@
             <h1>🏠 Cadastre Intelligent</h1>
             <p>Recherchez une adresse pour afficher les données cadastrales complètes</p>
         </header>
-        
+
         <section class="search-section">
             <div class="search-container">
                 <input type="text" class="search-input" id="searchInput" placeholder="Entrez une adresse (ex: 14 rue Émile Nicol, Dozulé)" autocomplete="off">
                 <div class="autocomplete-list" id="autocompleteList"></div>
             </div>
         </section>
-        
+
         <div class="tabs">
             <button class="tab active" data-tab="geocode">📍 Géocodage</button>
             <button class="tab" data-tab="cadastre">📋 Cadastre</button>
@@ -98,7 +102,7 @@
             <button class="tab" data-tab="orthophoto">🛰️ Orthophoto</button>
             <button class="tab" data-tab="status">⚙️ Status APIs</button>
         </div>
-        
+
         <div class="panel active" id="panel-geocode">
             <h2>Résultats du Géocodage</h2>
             <div id="geocode-content">
@@ -111,6 +115,7 @@
                 </div>
             </div>
         </div>
+<<<<<<< HEAD
         
         <div class="panel" id="panel-cadastre">
             <h2>Plan Cadastral</h2>
@@ -118,6 +123,14 @@
                 <button class="filter-pill active" data-base="cadastre">Plan cadastral</button>
                 <button class="filter-pill" data-base="planign">Plan IGN</button>
                 <button class="filter-pill" data-base="ortho">Orthophoto</button>
+
+        <div class="panel" id="panel-map">
+            <h2>Carte Interactive</h2>
+            <div class="base-layer-list" id="base-layer-list">
+                <label><input type="radio" name="baseLayer" value="ortho"> Orthophoto IGN (WMS)</label>
+                <label><input type="radio" name="baseLayer" value="planign"> Plan IGN</label>
+                <label><input type="radio" name="baseLayer" value="cadastre" checked> Cadastre</label>
+>>>>>>> e4913f9 (Fix grid seams)
             </div>
             <div id="cadastre-content">
                 <div class="empty-state">
@@ -148,12 +161,15 @@
                 <span style="color:#475569;font-weight:600;">(appliqué au mode cadastre)</span>
             </div>
         </div>
+<<<<<<< HEAD
         
         <div class="panel" id="panel-orthophoto">
             <h2>Vue Aérienne (Orthophoto)</h2>
             <div id="ortho-map"></div>
         </div>
         
+
+>>>>>>> e4913f9 (Fix grid seams)
         <div class="panel" id="panel-status">
             <h2>Status des APIs</h2>
             <div id="status-content">
@@ -179,7 +195,6 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            enableTileOverlap(3);
             initTabs();
             initSearch();
             initMap();
@@ -218,10 +233,10 @@
             input.addEventListener('input', () => {
                 clearTimeout(debounceTimer);
                 const query = input.value.trim();
-                if (query.length < 3) { 
-                    list.style.display = 'none'; 
+                if (query.length < 3) {
+                    list.style.display = 'none';
                     currentFeatures = [];
-                    return; 
+                    return;
                 }
 
                 debounceTimer = setTimeout(async () => {
@@ -251,8 +266,8 @@
                             currentFeatures = [];
                             list.style.display = 'none';
                         }
-                    } catch (err) { 
-                        console.error('Autocomplete error:', err); 
+                    } catch (err) {
+                        console.error('Autocomplete error:', err);
                         currentFeatures = [];
                         list.style.display = 'none';
                     }
@@ -320,23 +335,6 @@
                 `;
             }
         }
-
-        function enableTileOverlap(pixels = 3) {
-            if (!window.L || !L.GridLayer) return;
-            const proto = L.GridLayer.prototype;
-            if (!proto._tileOverlapEnabled) {
-                const originalInitTile = proto._initTile;
-                proto._initTile = function (tile) {
-                    originalInitTile.call(this, tile);
-                    const size = this.getTileSize();
-                    const overlap = pixels * 2;
-                    tile.style.width = `${size.x + overlap}px`;
-                    tile.style.height = `${size.y + overlap}px`;
-                    tile.style.marginLeft = `-${pixels}px`;
-                    tile.style.marginTop = `-${pixels}px`;
-                };
-                proto._tileOverlapEnabled = true;
-            }
             if (!proto._tilePosRounded) {
                 const originalGetTilePos = proto._getTilePos;
                 proto._getTilePos = function (coords) {
@@ -408,18 +406,26 @@
 
         async function loadParcelle() {
             if (!state.currentLocation) return;
+<<<<<<< HEAD
             const content = document.getElementById('cadastre-content');
             content.innerHTML = '<div class="loading">Chargement du plan cadastral</div>';
             
+            const info = document.getElementById('cadastre-info');
+            if (info) {
+                info.innerHTML = '<div class="loading">Chargement du plan cadastral</div>';
+            }
+
+>>>>>>> e4913f9 (Fix grid seams)
             try {
                 const { lon, lat } = state.currentLocation;
                 const resp = await fetch(`/api/cadastre/parcelle?lon=${lon}&lat=${lat}`);
                 const data = await resp.json();
-                
+
                 if (!data.success) {
                     content.innerHTML = '<div class="empty-state"><p>Aucune parcelle trouvée à cette adresse</p></div>';
                     return;
                 }
+<<<<<<< HEAD
                 
                 const p = data.parcelle;
                 state.parcelle = p;
@@ -479,6 +485,50 @@
                 
                 initCadastreMap();
                 
+
+                const candidates = data.parcellesGeojson?.features || data.geojson?.features || [];
+                state.cadastreMode = data.mode || 'UNCERTAIN';
+                const selectedIds = data.selectedParcelIds || [];
+                const selectedId = data.selectedParcelId || selectedIds[0];
+                const selectedFeature = candidates.find(feature => feature.properties?.idu === selectedId) || candidates[0];
+                state.parcelle = selectedFeature?.properties || data.parcelle;
+                state.parcelleGeoJSONAll = { type: 'FeatureCollection', features: candidates };
+                state.parcelleGeoJSONSelected = selectedIds.length
+                    ? {
+                        type: 'FeatureCollection',
+                        features: candidates.filter(feature => selectedIds.includes(feature.properties?.idu))
+                    }
+                    : (selectedFeature ? { type: 'FeatureCollection', features: [selectedFeature] } : null);
+                state.showNeighborParcels = state.cadastreMode === 'MULTI_PARCEL';
+
+                const parcellesList = (selectedIds.length ? selectedIds : candidates.map(f => f.properties?.idu))
+                    .filter(Boolean)
+                    .map(idu => {
+                        const f = candidates.find(feature => feature.properties?.idu === idu);
+                        if (!f) return idu;
+                        return `${f.properties.section} ${f.properties.numero}`;
+                    });
+                state.parcellesList = parcellesList;
+                renderCadastreInfo();
+                if (data.selectedBuildingCenter) {
+                    state.marker?.setLatLng([data.selectedBuildingCenter[0], data.selectedBuildingCenter[1]]);
+                } else if (data.selectedParcelCenter) {
+                    state.marker?.setLatLng([data.selectedParcelCenter[0], data.selectedParcelCenter[1]]);
+                }
+                if (data.selectedBuildingBounds) {
+                    state.map.fitBounds([
+                        [data.selectedBuildingBounds[0], data.selectedBuildingBounds[1]],
+                        [data.selectedBuildingBounds[2], data.selectedBuildingBounds[3]]
+                    ]);
+                } else if (data.selectedParcelBounds) {
+                    state.map.fitBounds([
+                        [data.selectedParcelBounds[0], data.selectedParcelBounds[1]],
+                        [data.selectedParcelBounds[2], data.selectedParcelBounds[3]]
+                    ]);
+                }
+                updateMapParcelle();
+
+>>>>>>> e4913f9 (Fix grid seams)
             } catch (err) {
                 console.error('Cadastre error:', err);
                 content.innerHTML = `<div class="empty-state"><p>Erreur: ${err.message}</p></div>`;

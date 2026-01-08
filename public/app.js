@@ -25,22 +25,7 @@
 
   window.captureReadyDone = false;
 
-  function enableTileOverlap(pixels = 3) {
-    if (!window.L || !L.GridLayer) return;
-    const proto = L.GridLayer.prototype;
-    if (!proto._tileOverlapEnabled) {
-      const originalInitTile = proto._initTile;
-      proto._initTile = function (tile) {
-        originalInitTile.call(this, tile);
-        const size = this.getTileSize();
-        const overlap = pixels * 2;
-        tile.style.width = `${size.x + overlap}px`;
-        tile.style.height = `${size.y + overlap}px`;
-        tile.style.marginLeft = `-${pixels}px`;
-        tile.style.marginTop = `-${pixels}px`;
-      };
-      proto._tileOverlapEnabled = true;
-    }
+<<<<<<< HEAD
     if (!proto._tilePosRounded) {
       const originalGetTilePos = proto._getTilePos;
       proto._getTilePos = function (coords) {
@@ -52,6 +37,7 @@
       proto._tilePosRounded = true;
     }
   }
+>>>>>>> e4913f9 (Fix grid seams)
 
   function log(msg, type = "info") {
     if (!logBox) return;
@@ -75,7 +61,6 @@
   }
 
   function initMap() {
-    enableTileOverlap(3);
     state.map = L.map("map").setView([46.6, 1.88], 6);
 
     const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
