@@ -1,0 +1,11 @@
+.git
+.gitignore
+*.md
+*.yaml
+package*.json
+server.js
+public/
+scripts/
+__pycache__/
+*.pyc
+.env
